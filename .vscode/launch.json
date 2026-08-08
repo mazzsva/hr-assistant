@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug server",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/server.ts",
+      "runtimeArgs": ["--env-file-if-exists=.env", "--experimental-strip-types"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Debug evals",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/evals/run.ts",
+      "runtimeArgs": ["--env-file-if-exists=.env", "--experimental-strip-types"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

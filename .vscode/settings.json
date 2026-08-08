@@ -1,0 +1,25 @@
+{
+  // Use the TypeScript version installed in the project, not the one bundled
+  // with the editor, so the editor and `npm run typecheck` always agree.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "vscode.typescript-language-features",
+  "[json]": { "editor.defaultFormatter": "vscode.json-language-features" },
+  "[css]": { "editor.defaultFormatter": "vscode.css-language-features" },
+
+  "editor.rulers": [88],
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  "files.exclude": {
+    "**/dist": true,
+    "**/node_modules": true
+  },
+  "search.exclude": {
+    "**/dist": true,
+    "**/node_modules": true,
+    "**/package-lock.json": true
+  }
+}
