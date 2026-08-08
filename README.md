@@ -17,6 +17,8 @@ partner.
 | CI | GitHub Actions: typecheck, web build, evals against a live Postgres, image build |
 | Deployment | Docker + Compose |
 
+`ARCHITECTURE.md` covers the decisions behind these choices and what comes next.
+
 ## Design notes
 
 **Retrieval is a tool, not a pre-step.** The agent decides when and what to
