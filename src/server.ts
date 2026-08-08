@@ -3,6 +3,7 @@ import express from "express";
 import { config } from "./config.ts";
 import { pool } from "./db.ts";
 import { migrate } from "./migrate.ts";
+import { ingestAll } from "./ingest.ts";
 import { ask, tools, systemPrompt } from "./agent.ts";
 import { activeProvider } from "./embeddings.ts";
 
@@ -92,7 +93,23 @@ app.get(/^(?!\/(ask|healthz|meta)).*/, (_request, response) => {
   response.sendFile(path.join(webDist, "index.html"));
 });
 
-await migrate();
+// A container starting against an empty volume has no corpus, so the handbook is
+// ingested on first boot. Re-ingesting is an explicit `npm run ingest`.
+async function bootstrap(): Promise<void> {
+  await migrate();
+
+  const { rows } = await pool.query<{ count: string }>(
+    `SELECT count(*)::text AS count FROM chunks`,
+  );
+  if (Number(rows[0]!.count) === 0) {
+    const result = await ingestAll();
+    console.log(
+      `ingested ${result.chunks} chunks from ${result.documents} documents`,
+    );
+  }
+}
+
+await bootstrap();
 app.listen(config.port, () => {
   console.log(`listening on http://localhost:${config.port}`);
 });
