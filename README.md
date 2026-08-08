@@ -57,15 +57,29 @@ docker compose up --build
 
 Then open http://localhost:3000.
 
-### Without Docker
-
-Postgres 17 with the `vector` extension has to be reachable at `DATABASE_URL`.
+### Without Docker (macOS)
 
 ```sh
+brew install postgresql@17 pgvector
+brew services start postgresql@17
+
+PSQL=/opt/homebrew/opt/postgresql@17/bin/psql
+$PSQL -d postgres -c "CREATE ROLE hr LOGIN PASSWORD 'hr' SUPERUSER;"
+$PSQL -d postgres -c "CREATE DATABASE hr OWNER hr;"
+
+cp .env.example .env          # add ANTHROPIC_API_KEY
 npm install
-npm ci --prefix web && npm run web:build
+npm install --prefix web && npm run web:build
 npm run ingest                # migrate + chunk + embed the handbook
-npm run dev                   # API on :3000
+npm run dev                   # API and UI on :3000
+```
+
+Every script reads `.env` through Node's `--env-file-if-exists`, so no dotenv
+dependency and no export step. Check the service with:
+
+```sh
+curl -s localhost:3000/healthz
+# {"ok":true,"chunks":17,"embedder":"local","model":"claude-opus-5"}
 ```
 
 `npm run web:dev` runs Vite on :5173 with `/ask` proxied to the API.
