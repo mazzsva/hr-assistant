@@ -1,0 +1,31 @@
+{
+  "name": "hr-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --watch --experimental-strip-types src/server.ts",
+    "start": "node dist/src/server.js",
+    "migrate": "node --experimental-strip-types src/migrate.ts",
+    "ingest": "node --experimental-strip-types src/ingest.ts",
+    "eval": "node --experimental-strip-types evals/run.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "web:build": "npm --prefix web run build",
+    "web:dev": "npm --prefix web run dev"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.116.0",
+    "express": "^5.1.0",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.7.2"
+  }
+}
