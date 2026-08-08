@@ -6,10 +6,10 @@ covers the decisions and what I would change next.
 ## The problem
 
 An employee asks "how many leave days can I carry over?" and needs a correct
-answer with a citation. The same employee asks "am I underpaid compared to my
-colleague?" and needs a human, not an answer. A system that treats those two
-questions the same way is worse than no system, because a confident wrong answer
-about policy costs more than a slow one.
+answer with a citation. The same employee asks "what is my performance rating?"
+and needs a human, because that answer lives in a personal record and not in the
+handbook. A system that treats those two questions the same way is worse than no
+system, because a confident wrong answer about policy costs more than a slow one.
 
 So the design goal is not "answer more questions". It is **answer the answerable
 ones accurately, and route the rest to a person without guessing.**

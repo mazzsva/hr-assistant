@@ -118,24 +118,49 @@ button:disabled {
   cursor: default;
 }
 
+.examples-hint {
+  margin: 1.1rem 0 0.5rem;
+}
+
 .examples {
   list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.5rem;
   padding: 0;
-  margin: 0.7rem 0 0;
+  margin: 0;
 }
 
 .examples button {
-  padding: 0.32rem 0.68rem;
-  font-size: 0.8rem;
+  display: block;
+  width: 100%;
+  height: 100%;
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  line-height: 1.4;
+}
+
+.examples button strong {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--accent);
+  margin-bottom: 0.2rem;
+}
+
+.examples button span {
+  font-size: 0.82rem;
   color: var(--muted);
 }
 
 .examples button:hover {
+  border-color: var(--accent);
+}
+
+.examples button:hover span {
   color: var(--fg);
-  border-color: var(--muted);
 }
 
 .error {

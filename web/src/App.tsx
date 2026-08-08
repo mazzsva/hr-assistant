@@ -1,12 +1,30 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { AgentResult, Meta, Passage, TraceStep } from "./types";
 
+// Each example is labelled with the behaviour it exercises, so the set reads as
+// a demo harness for the agent's routing rather than as a list of questions.
 const examples = [
-  "How many leave days can I carry over?",
-  "Do I get a premium for a night shift on a Sunday?",
-  "What is the referral bonus for an engineering role?",
-  "How many people work in Engineering?",
-  "Am I underpaid compared to my colleague?",
+  { label: "Policy lookup", question: "How many leave days can I carry over?" },
+  {
+    label: "Competing rules",
+    question: "Do I get a premium for a night shift on a Sunday?",
+  },
+  {
+    label: "Multi-part policy",
+    question: "What is the referral bonus for an engineering role, and when is it paid?",
+  },
+  {
+    label: "Structured query, no retrieval",
+    question: "How many people work in Engineering?",
+  },
+  {
+    label: "Not in the handbook",
+    question: "What is the company policy on sabbaticals of over a year?",
+  },
+  {
+    label: "Personal record, routed to a human",
+    question: "What is my performance rating for this year?",
+  },
 ];
 
 export function App() {
@@ -79,11 +97,15 @@ export function App() {
         </button>
       </form>
 
+      <p className="hint examples-hint">
+        Each example exercises a different path through the agent.
+      </p>
       <ul className="examples">
         {examples.map((example) => (
-          <li key={example}>
-            <button type="button" onClick={() => setQuestion(example)}>
-              {example}
+          <li key={example.question}>
+            <button type="button" onClick={() => setQuestion(example.question)}>
+              <strong>{example.label}</strong>
+              <span>{example.question}</span>
             </button>
           </li>
         ))}
