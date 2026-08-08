@@ -5,6 +5,12 @@ language; an agent retrieves passages from the policy handbook, queries headcoun
 data with SQL, and either answers with citations or opens a ticket for a human HR
 partner.
 
+> The handbook in `docs/` and the employee rows in `migrate.ts` are fictional,
+> written for this project. They describe a generic European manufacturing
+> employer and are not any real company's policies or data. The leave, notice,
+> and working-time rules are modelled on German statute so the answers are
+> realistic to read.
+
 ## What it is
 
 | Layer | Choice |

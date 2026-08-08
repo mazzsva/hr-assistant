@@ -120,6 +120,12 @@ nothing.
 5. **Access control.** Every employee currently sees the same handbook. Real HR
    data is scoped by role and region, and that scoping has to live in the
    retrieval query, not in the prompt.
+6. **A retention policy for logged questions.** `answers` stores the question
+   text so the eval set can grow from real usage, and in an HR context those
+   questions are among the most sensitive text in the company — someone asking
+   about parental leave has disclosed something. Before this ran for real it
+   would need a retention window, restricted access to the table, and a clear
+   notice to employees that questions are recorded.
 
 ## Trade-offs I accepted
 
