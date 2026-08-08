@@ -1,0 +1,16 @@
+node_modules
+web/node_modules
+dist
+web/dist
+web/tsconfig.tsbuildinfo
+
+.env
+.git
+.github
+.vscode
+
+evals
+*.md
+LICENSE
+docker-compose.yml
+Dockerfile

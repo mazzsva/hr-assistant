@@ -13,7 +13,3 @@ export function cost(usd: number): string {
 export function similarity(value: number): string {
   return value.toFixed(3);
 }
-
-export function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
