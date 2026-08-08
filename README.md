@@ -1,184 +1,156 @@
 # HR Assistant
 
-An internal HR question-answering service. Employees ask a question in plain
-language; an agent retrieves passages from the policy handbook, queries headcount
-data with SQL, and either answers with citations or opens a ticket for a human HR
-partner.
+Ask an HR question in plain language. An agent searches the policy handbook,
+queries headcount with SQL, and either answers with citations or hands the
+question to a human.
 
-> The handbook in `docs/` and the employee rows in `migrate.ts` are fictional,
-> written for this project. They describe a generic European manufacturing
-> employer and are not any real company's policies or data. The leave, notice,
-> and working-time rules are modelled on German statute so the answers are
-> realistic to read.
+> The handbook in `docs/` and the employee rows are made up. They describe a
+> generic European manufacturer, not any real company. The leave and working-time
+> rules follow German statute so the answers read realistically.
 
-## What it is
+## Stack
 
-| Layer | Choice |
+| | |
 | --- | --- |
-| Retrieval | PostgreSQL + `pgvector`, HNSW cosine index |
-| Agent | Claude with a tool loop: `search_policies`, `headcount_query`, `escalate_to_hr` |
-| API | Node 22 + Express, TypeScript |
-| Front end | React 19 + Vite |
-| Evaluation | Retrieval recall, an LLM-judged answer score, and escalation accuracy |
-| CI | GitHub Actions: typecheck, web build, evals against a live Postgres, image build |
-| Deployment | Docker + Compose |
+| Retrieval | PostgreSQL + `pgvector`, HNSW cosine |
+| Agent | Claude, three tools: `search_policies`, `headcount_query`, `escalate_to_hr` |
+| API | Node 22, Express, TypeScript |
+| Web | React 19, Vite |
+| Evals | Retrieval recall, LLM-judged answers, escalation accuracy |
+| CI | GitHub Actions — typecheck, build, evals, Docker image |
 
-`ARCHITECTURE.md` covers the decisions behind these choices and what comes next.
+Why it's built this way: `ARCHITECTURE.md`.
 
-## Requirements
+## Before you start
 
-- **Node 22 or newer.** The scripts use `--experimental-strip-types` to run
-  TypeScript directly and `--env-file-if-exists` to read `.env`. Neither flag
-  exists on Node 20, and the failure there is a confusing one. Check with
+- **Node 22+.** The scripts use `--experimental-strip-types` and
+  `--env-file-if-exists`. Node 20 fails with a confusing error. Check with
   `node --version`.
-- **Either Docker, or PostgreSQL 17 with the `pgvector` extension.** Both routes
-  are below.
-- **An Anthropic API key**, for answering questions. Retrieval, ingestion, and
-  the retrieval half of the eval all run without one.
+- **Docker, or Postgres 17 with `pgvector`.**
+- **An Anthropic API key** to answer questions. Retrieval and ingestion work
+  without one.
 
-## Run it with Docker
+## Run it — Docker
 
 ```sh
-cp .env.example .env          # then put your key in ANTHROPIC_API_KEY
+cp .env.example .env          # add your key
 docker compose up --build
 ```
 
-Open http://localhost:3000.
+http://localhost:3000. First boot creates the schema and ingests the handbook.
+The database lives in a volume, so later starts skip that.
 
-The first boot creates the schema and ingests the handbook, which takes a few
-seconds. Compose keeps the database in a named volume, so later starts skip
-both steps.
-
-## Run it locally (macOS)
+## Run it — locally, macOS
 
 ```sh
-# 1. Database
 brew install postgresql@17 pgvector
 brew services start postgresql@17
 
-# On Apple Silicon. Intel Macs use /usr/local instead of /opt/homebrew.
+# Apple Silicon path. Intel Macs: /usr/local
 PSQL=/opt/homebrew/opt/postgresql@17/bin/psql
 
-# SUPERUSER is needed once, so the app can run CREATE EXTENSION vector.
+# SUPERUSER once, so the app can CREATE EXTENSION vector
 $PSQL -d postgres -c "CREATE ROLE hr LOGIN PASSWORD 'hr' SUPERUSER;"
 $PSQL -d postgres -c "CREATE DATABASE hr OWNER hr;"
 
-# 2. Application
-cp .env.example .env          # then put your key in ANTHROPIC_API_KEY
+cp .env.example .env          # add your key
 npm install
 npm install --prefix web
-npm run web:build             # the API serves this build; skipping it gives a blank page
-npm run dev                   # API and UI on :3000
+npm run web:build             # skip this and you get a blank page
+npm run dev
 ```
 
-Every script reads `.env` through Node's `--env-file-if-exists`, so there is no
-dotenv dependency and no export step.
-
-Confirm it came up:
+Check it:
 
 ```sh
 curl -s localhost:3000/healthz
 # {"ok":true,"chunks":14,"embedder":"local","model":"claude-opus-5"}
 ```
 
-`chunks` should be greater than zero. The server ingests the handbook on first
-boot when it finds an empty corpus; `npm run ingest` re-runs that by hand after
-you edit anything in `docs/`.
+`chunks` above zero means the handbook is loaded. Edited something in `docs/`?
+Run `npm run ingest`.
 
-For front-end work, `npm run web:dev` serves Vite on :5173 with hot reload and
-proxies `/ask` and `/meta` to the API — keep `npm run dev` running alongside it.
+Front-end work: `npm run web:dev` gives you Vite on :5173 with hot reload. Keep
+`npm run dev` running too.
 
-## Using it
+## Endpoints
 
-| Endpoint | Purpose |
+| | |
 | --- | --- |
-| `GET /healthz` | Liveness, corpus size, active embedder and model |
-| `GET /meta` | The live system prompt, tool schemas, and corpus counts |
-| `POST /ask` | `{"question": "..."}` → answer, retrieved passages, usage, and trace |
+| `GET /healthz` | Corpus size, embedder, model |
+| `GET /meta` | Live system prompt, tool schemas, counts |
+| `POST /ask` | `{"question": "..."}` → answer, passages, usage, trace |
 
 ```sh
-curl -s localhost:3000/ask \
-  -H 'content-type: application/json' \
+curl -s localhost:3000/ask -H 'content-type: application/json' \
   -d '{"question":"How many leave days can I carry over?"}'
 ```
 
-The UI shows the same payload: the answer, a metrics strip, the agent trace, and
-every retrieved passage with its similarity score.
+The UI shows the same thing: answer, metrics, agent trace, retrieved passages
+with scores.
 
-## Evaluating
+## Evals
 
 ```sh
 npm run eval
 ```
 
-The run re-ingests the handbook, scores every case in `evals/dataset.json`, and
-exits non-zero when a metric falls below its floor. Add a case whenever a real
-question is answered badly — the dataset is the regression suite.
+Scores every case in `evals/dataset.json` and exits non-zero if a metric drops
+below its floor. Answered a real question badly? Add it as a case.
 
-Without `ANTHROPIC_API_KEY` it reports retrieval recall only and skips the answer
-judge, which is how it stays useful in CI on a fork. A full run calls the API
-once per case plus once per judgement, so expect roughly $0.50 in usage.
+No API key means retrieval recall only — that's how CI stays useful on a fork.
+A full run costs about $0.50.
 
-## Troubleshooting
+## When it breaks
 
-| Symptom | Cause |
+| Symptom | Fix |
 | --- | --- |
-| `ECONNREFUSED ... 5432` | Postgres is not running. `brew services start postgresql@17`. |
-| `401 ... invalid x-api-key` | `.env` still holds the placeholder key. |
-| `"chunks":0` in `/healthz` | Ingestion did not run. `npm run ingest`. |
-| Blank page at :3000 | `npm run web:build` has not been run. |
-| `bad option: --experimental-strip-types` | Node is older than 22. |
-| `type "vector" does not exist` | `pgvector` is missing, or was installed for a different Postgres version. |
+| `ECONNREFUSED ... 5432` | Postgres isn't running |
+| `401 ... invalid x-api-key` | `.env` still has the placeholder |
+| `"chunks":0` | `npm run ingest` |
+| Blank page | `npm run web:build` |
+| `bad option: --experimental-strip-types` | Node older than 22 |
+| `type "vector" does not exist` | `pgvector` missing, or built for another Postgres |
 
-Stop everything with `docker compose down`, or `brew services stop postgresql@17`
-for the local route.
+Stop with `docker compose down`, or `brew services stop postgresql@17`.
 
 ## Layout
 
 ```
 src/
-  config.ts      Environment and model configuration
-  db.ts          Connection pool and pgvector serialization
+  config.ts      Environment and model config
+  db.ts          Pool and pgvector serialization
   migrate.ts     Schema and seed data
   chunk.ts       Heading-aware markdown chunking
-  embeddings.ts  Voyage provider with a deterministic local fallback
-  ingest.ts      Chunk, embed, and upsert the handbook
-  retrieve.ts    Cosine top-k search
-  agent.ts       Tool definitions and the agent loop
-  server.ts      HTTP API, first-boot ingestion, and static hosting
+  embeddings.ts  Voyage, with a local fallback
+  ingest.ts      Chunk, embed, upsert
+  retrieve.ts    Cosine top-k
+  agent.ts       Tools and the agent loop
+  server.ts      API, first-boot ingest, static hosting
 evals/
-  dataset.json   Questions, rubrics, and expected escalation behaviour
-  run.ts         Metrics, thresholds, and the LLM judge
-docs/            The policy handbook the assistant answers from
+  dataset.json   Questions, rubrics, expected escalation
+  run.ts         Metrics, thresholds, LLM judge
+docs/            The handbook
 web/src/
-  App.tsx        State and layout only
-  lib/           API calls, formatting, and the example questions
-  components/    One component and one stylesheet per piece of the page
-  styles/        Design tokens, imported once
+  App.tsx        State and layout, nothing else
+  lib/           API calls, formatting, examples
+  components/    One component and one stylesheet each
+  styles/        Design tokens
 ```
 
-## Design notes
+## Four decisions
 
-**Retrieval is a tool, not a pre-step.** The agent decides when and what to
-search, so a multi-part question produces several narrow searches instead of one
-broad one. A question with no policy answer produces no search at all.
+**Retrieval is a tool, not a pre-step.** The agent picks when and what to search.
+Multi-part questions get several narrow searches. Questions with no policy answer
+get none.
 
-**Headcount is SQL, not retrieval.** Counting people is a query, and a vector
-search over prose will never answer it correctly. Splitting the two removes a
-whole class of confident wrong answers.
+**Headcount is SQL.** Counting people is a query. A vector search over prose will
+never answer it right.
 
-**Escalation is a first-class outcome.** The agent has an explicit path for "the
-handbook does not cover this", so the failure mode is a ticket rather than an
-invented policy. `escalation accuracy` is a gated metric in CI, at 100%.
+**Escalation is a real outcome.** "The handbook doesn't cover this" has somewhere
+to go, so the failure mode is a ticket instead of an invented policy. Gated at
+100% in CI.
 
-**Evaluation gates the pipeline.** Three metrics with floors, run on every pull
-request:
-
-- `retrieval recall@5` — did the correct source document appear in the top 5?
-- `answer accuracy` — an LLM judge scores each answer against a per-question rubric.
-- `escalation accuracy` — did the agent escalate exactly when it should have?
-
-**Embeddings are pluggable.** With `VOYAGE_API_KEY` set, the service uses
-`voyage-3`. Without it, it falls back to a deterministic local hashed-bigram
-embedder. The fallback is not as good, but it makes ingestion, retrieval, and CI
-runnable with zero external dependencies.
+**Embeddings are pluggable.** `voyage-3` with `VOYAGE_API_KEY`, otherwise a local
+hashed-bigram embedder. Worse, but it means ingestion and CI need no external
+service.
