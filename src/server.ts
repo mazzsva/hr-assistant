@@ -3,7 +3,7 @@ import express from "express";
 import { config } from "./config.ts";
 import { pool } from "./db.ts";
 import { migrate } from "./migrate.ts";
-import { ask } from "./agent.ts";
+import { ask, tools, systemPrompt } from "./agent.ts";
 import { activeProvider } from "./embeddings.ts";
 
 // Resolved from the working directory so the path is the same whether the
@@ -22,6 +22,41 @@ app.get("/healthz", async (_request, response) => {
     chunks: Number(rows[0]!.chunks),
     embedder: activeProvider(),
     model: config.model,
+  });
+});
+
+// Exposes the agent's configuration so the UI can show what the model is allowed
+// to do without anyone opening the source.
+app.get("/meta", async (_request, response) => {
+  const { rows } = await pool.query<{
+    documents: string;
+    chunks: string;
+    employees: string;
+    answered: string;
+  }>(
+    `SELECT (SELECT count(*) FROM documents)::text  AS documents,
+            (SELECT count(*) FROM chunks)::text     AS chunks,
+            (SELECT count(*) FROM employees)::text  AS employees,
+            (SELECT count(*) FROM answers)::text    AS answered`,
+  );
+
+  response.json({
+    model: config.model,
+    embedder: activeProvider(),
+    embeddingDimensions: config.embeddingDimensions,
+    retrievalTopK: config.retrievalTopK,
+    systemPrompt,
+    tools: tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      input_schema: tool.input_schema,
+    })),
+    corpus: {
+      documents: Number(rows[0]!.documents),
+      chunks: Number(rows[0]!.chunks),
+      employees: Number(rows[0]!.employees),
+      answered: Number(rows[0]!.answered),
+    },
   });
 });
 
@@ -53,7 +88,7 @@ app.post("/ask", async (request, response) => {
 });
 
 app.use(express.static(webDist));
-app.get(/^(?!\/(ask|healthz)).*/, (_request, response) => {
+app.get(/^(?!\/(ask|healthz|meta)).*/, (_request, response) => {
   response.sendFile(path.join(webDist, "index.html"));
 });
 
