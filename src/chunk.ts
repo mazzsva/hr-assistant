@@ -4,7 +4,10 @@ export function chunkMarkdown(markdown: string): string[] {
   const sections = markdown
     .split(/\n(?=#{1,3} )/g)
     .map((section) => section.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    // A document title with no body of its own splits into a heading-only
+    // section. It retrieves on title words and wastes a top-k slot.
+    .filter((section) => section.split("\n").some((line) => !line.startsWith("#")));
 
   const chunks: string[] = [];
   for (const section of sections) {

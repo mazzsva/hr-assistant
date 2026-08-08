@@ -130,11 +130,15 @@ async function judge(
       effort: "low",
       format: { type: "json_schema", schema: judgeSchema },
     },
+    // The rubric states what the answer must contain, never the whole of what it
+    // may contain. Grading extra detail as unsupported punishes correct answers,
+    // so the two clauses are kept separate: cover the rubric, invent nothing.
     system:
-      "You grade an HR assistant's answer against a rubric. Pass only if the " +
-      "answer satisfies every clause of the rubric and adds no claim the rubric " +
-      "does not support. Extra correct detail is fine; a wrong or invented " +
-      "detail is a failure.",
+      "You grade an HR assistant's answer against a rubric. Pass if the answer " +
+      "covers every clause of the rubric and states nothing that is factually " +
+      "wrong. Additional accurate detail beyond the rubric is expected and must " +
+      "not count against the answer; the rubric is a floor, not a ceiling. Fail " +
+      "only for a missing rubric clause or a claim that is actually incorrect.",
     messages: [
       {
         role: "user",

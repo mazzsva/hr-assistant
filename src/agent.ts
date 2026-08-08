@@ -16,6 +16,11 @@ passages do not answer the question, say so plainly and call escalate_to_hr rath
 than guessing. Questions about an individual's own pay, discipline, medical
 situation, or a complaint about a person always go to escalate_to_hr.
 
+When you escalate, never reply with only a ticket number. Say what the handbook
+does and does not cover for this question, then give the ticket. An employee who
+gets a bare ticket number cannot tell whether they asked the wrong question or
+whether no policy exists.
+
 Keep answers to a few sentences. Lead with the answer, then the condition or
 exception that the employee has to act on.`;
 
@@ -213,9 +218,16 @@ async function runTool(toolUse: Anthropic.ToolUseBlock): Promise<ToolOutcome> {
     }
 
     case "escalate_to_hr": {
+      // The tool result is prompt too. Naming the shape of the reply here beats
+      // the same instruction in the system prompt, because it arrives in the
+      // turn where the model is deciding what to write.
       const ticket = `HR-${Date.now().toString(36).toUpperCase()}`;
       return {
-        content: `Ticket ${ticket} opened. Tell the employee a partner will reply within two working days.`,
+        content:
+          `Ticket ${ticket} opened. Now write the reply to the employee in this order: ` +
+          `first one sentence on what the handbook does or does not say about their ` +
+          `question, then the ticket number, then that a partner replies within two ` +
+          `working days. A reply that is only a ticket number is not acceptable.`,
         escalated: true,
       };
     }
