@@ -1,0 +1,73 @@
+/* Design tokens and the global reset. Every component styles itself from these
+   variables, so there is exactly one place to change the look of the app. */
+
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces */
+  --bg: #fcfcfd;
+  --surface: #ffffff;
+  --border: #e6e8ec;
+  --well: #f4f5f7;
+
+  /* Text */
+  --text: #15171c;
+  --muted: #71767f;
+
+  /* One accent, used sparingly */
+  --accent: #3355d8;
+
+  /* Type */
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, "Liberation Mono", monospace;
+  --text-sm: 0.78rem;
+  --text-xs: 0.7rem;
+
+  /* Spacing scale */
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --surface: #161920;
+    --border: #252932;
+    --well: #1c2029;
+    --text: #e7e9ee;
+    --muted: #939aa6;
+    --accent: #8aa4ff;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numbers and identifiers are always mono and tabular, everywhere. */
+.numeric {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

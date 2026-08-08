@@ -1,0 +1,46 @@
+.list {
+  margin: 0;
+  padding: 0 0 0 var(--s4);
+  list-style: none;
+  border-left: 1px solid var(--border);
+}
+
+.step {
+  position: relative;
+  padding-bottom: var(--s5);
+}
+
+.step:last-child {
+  padding-bottom: 0;
+}
+
+/* Model turns are hollow, tool calls are filled. One accent, two states. */
+.step::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--s4) - 4.5px);
+  top: 0.45rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  background: var(--bg);
+}
+
+.step.tool::before {
+  background: var(--accent);
+}
+
+.detail {
+  margin: var(--s1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.sub {
+  margin: var(--s2) 0 0;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}

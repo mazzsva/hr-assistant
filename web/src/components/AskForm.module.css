@@ -1,0 +1,85 @@
+.form {
+  display: flex;
+  gap: var(--s2);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 0.8rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.input::placeholder {
+  color: var(--muted);
+}
+
+.submit {
+  padding: 0.65rem 1.1rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.submit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.hint {
+  margin: var(--s5) 0 var(--s2);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.examples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.example {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: var(--s3);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.example:hover {
+  border-color: var(--accent);
+}
+
+.exampleLabel {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--accent);
+  margin-bottom: var(--s1);
+}
+
+.exampleQuestion {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  line-height: 1.45;
+}

@@ -1,0 +1,13 @@
+.code {
+  margin: var(--s2) 0 0;
+  padding: var(--s3);
+  background: var(--well);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}

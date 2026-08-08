@@ -1,0 +1,25 @@
+.item {
+  border-top: 1px solid var(--border);
+  padding: var(--s3) 0;
+}
+
+.item:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.item:last-of-type {
+  padding-bottom: 0;
+}
+
+.summary {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+}
+
+.description {
+  margin: var(--s2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}

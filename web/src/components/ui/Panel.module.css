@@ -1,0 +1,23 @@
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--s4) var(--s5);
+}
+
+.head {
+  margin-bottom: var(--s4);
+}
+
+.title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.hint {
+  margin: var(--s1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
