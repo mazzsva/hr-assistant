@@ -47,8 +47,7 @@ async function embedWithVoyage(
     .map((entry) => normalize(entry.embedding));
 }
 
-// Hashed bag-of-words. Deterministic, offline, and good enough for keyword-like
-// retrieval over a small corpus, so CI and evals run without an embedding key.
+// Hashed bag-of-words, so CI and evals run without an embedding key.
 function embedLocally(text: string): number[] {
   const vector = new Array<number>(config.embeddingDimensions).fill(0);
   const tokens = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];

@@ -5,8 +5,7 @@ export function chunkMarkdown(markdown: string): string[] {
     .split(/\n(?=#{1,3} )/g)
     .map((section) => section.trim())
     .filter(Boolean)
-    // A document title with no body of its own splits into a heading-only
-    // section. It retrieves on title words and wastes a top-k slot.
+    // A heading-only section retrieves on title words and wastes a top-k slot.
     .filter((section) => section.split("\n").some((line) => !line.startsWith("#")));
 
   const chunks: string[] = [];

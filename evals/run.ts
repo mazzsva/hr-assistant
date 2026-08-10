@@ -18,8 +18,7 @@ interface Case {
   shouldEscalate: boolean;
 }
 
-// Thresholds are the gate: CI fails when a change drops either metric below its
-// floor, so retrieval and answer regressions surface on the pull request.
+// Thresholds are the gate: CI fails when a metric drops below its floor.
 const RETRIEVAL_FLOOR = 0.85;
 const ANSWER_FLOOR = 0.8;
 const ESCALATION_FLOOR = 1.0;
@@ -130,9 +129,7 @@ async function judge(
       effort: "low",
       format: { type: "json_schema", schema: judgeSchema },
     },
-    // The rubric states what the answer must contain, never the whole of what it
-    // may contain. Grading extra detail as unsupported punishes correct answers,
-    // so the two clauses are kept separate: cover the rubric, invent nothing.
+    // The rubric is a floor, so extra accurate detail must not fail the answer.
     system:
       "You grade an HR assistant's answer against a rubric. Pass if the answer " +
       "covers every clause of the rubric and states nothing that is factually " +

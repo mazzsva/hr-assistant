@@ -1,6 +1,5 @@
 {
-  // Use the TypeScript version installed in the project, not the one bundled
-  // with the editor, so the editor and `npm run typecheck` always agree.
+  // Use the project TypeScript so the editor and `npm run typecheck` agree.
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
 
