@@ -89,15 +89,6 @@ export const tools: Anthropic.Tool[] = [
   },
 ];
 
-// Per-million-token list prices for the configured model, used to price a
-// single question in the trace panel.
-const PRICES = {
-  input: 5,
-  output: 25,
-  cacheWrite: 6.25,
-  cacheRead: 0.5,
-} as const;
-
 export interface Usage {
   inputTokens: number;
   outputTokens: number;
@@ -148,10 +139,10 @@ function priceUsage(usage: Anthropic.Usage): Usage {
     cacheWriteTokens,
     cacheReadTokens,
     costUsd:
-      (inputTokens * PRICES.input +
-        outputTokens * PRICES.output +
-        cacheWriteTokens * PRICES.cacheWrite +
-        cacheReadTokens * PRICES.cacheRead) /
+      (inputTokens * config.prices.input +
+        outputTokens * config.prices.output +
+        cacheWriteTokens * config.prices.cacheWrite +
+        cacheReadTokens * config.prices.cacheRead) /
       1_000_000,
   };
 }
