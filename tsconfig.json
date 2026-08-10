@@ -10,11 +10,10 @@
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    // Imports are written with .ts extensions so `node --experimental-strip-types`
-    // can resolve them, and the compiler rewrites them to .js on emit.
+    // Imports keep their .ts extension for Node and are rewritten to .js on emit.
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true
   },
-  "include": ["src/**/*.ts", "evals/**/*.ts"],
+  "include": ["src/**/*.ts", "evals/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules", "dist", "web"]
 }

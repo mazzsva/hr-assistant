@@ -300,6 +300,25 @@ export async function ask(question: string): Promise<AgentResult> {
   };
 }
 
+// Column names come from this fixed list, never from the model.
+export function headcountFilters(input: Record<string, string | undefined>): {
+  where: string;
+  values: string[];
+} {
+  const filters: string[] = [];
+  const values: string[] = [];
+
+  for (const column of ["department", "location", "level"] as const) {
+    const value = input[column];
+    if (value) {
+      values.push(value);
+      filters.push(`${column} = $${values.length}`);
+    }
+  }
+
+  return { where: filters.length ? `WHERE ${filters.join(" AND ")}` : "", values };
+}
+
 interface ToolOutcome {
   content: string;
   summary: string;
@@ -327,16 +346,7 @@ async function runTool(toolUse: Anthropic.ToolUseBlock): Promise<ToolOutcome> {
     }
 
     case "headcount_query": {
-      const filters: string[] = [];
-      const values: string[] = [];
-      for (const column of ["department", "location", "level"] as const) {
-        const value = input[column];
-        if (value) {
-          values.push(value);
-          filters.push(`${column} = $${values.length}`);
-        }
-      }
-      const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+      const { where, values } = headcountFilters(input);
       const { rows } = await pool.query<{ count: string }>(
         `SELECT count(*)::text AS count FROM employees ${where}`,
         values,
