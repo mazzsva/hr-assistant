@@ -24,7 +24,7 @@ agent loop ──── search_policies ───► pgvector cosine top-k ─�
    │       ├─── headcount_query ───► SQL over employees ────► a number
    │       └─── escalate_to_hr ────► ticket
    ▼
-answer with [chunk id] citations   ──► answers table (question, chunks, latency)
+answer with [chunk id] citations   ──► answers table ──► /stats
 ```
 
 Six turns max. Every answer is logged with its chunk ids and latency, so
@@ -56,6 +56,17 @@ Leave balances, shift rosters, org structure.
 
 `escalate_to_hr` gives "I don't know" somewhere to go. Without it the model can
 only answer or refuse — and under pressure from near-miss passages, it answers.
+
+Escalating well is a second problem. Asked for a sabbatical policy that does not
+exist, the first version replied with a ticket number and nothing else, which
+leaves the employee unable to tell whether they asked the wrong question or
+whether no policy exists. Instructions in the system prompt did not reliably fix
+it. Making `coverage` a required tool input did: the model has to write the
+sentence before it gets a ticket, and the tool hands back the finished reply.
+
+The general lesson is worth more than the fix. **When a prompt keeps failing to
+guarantee something, move it into a schema.** A required field is checked; an
+instruction is only hoped for.
 
 Gated at 100% in CI. It's the metric I'd show a skeptical HR director first,
 because it measures the failure they actually care about.
@@ -95,6 +106,21 @@ Rubrics are specific — "states seven weeks' notice, and 13 weeks when the leav
 starts after the child's third birthday" — not "is the answer good". A vague
 rubric makes a judge that agrees with itself and tells you nothing.
 
+Unit tests sit underneath and answer a different question. Evals tell me whether
+the agent is right; `npm test` tells me whether chunking, the embedder, and the
+headcount filters are right. When an eval fails, passing unit tests mean the
+regression is in the agent, not in the plumbing.
+
+## Monitoring
+
+Every answer is written to `answers` with its chunk ids, escalation flag, and
+latency. `GET /stats` reads that back as volume, escalation rate, and p50 and p95
+latency.
+
+Escalation rate is the number to watch. A sudden fall means the agent started
+answering questions it used to route to a person, and that is the failure this
+system exists to prevent — it will not show up in latency or error rates.
+
 ## Next
 
 1. **Hybrid retrieval.** Cosine alone misses exact-token queries — a policy
@@ -116,6 +142,13 @@ rubric makes a judge that agrees with itself and tells you nothing.
    restricted access, and a notice to employees before this runs for real.
 
 ## Trade-offs
+
+**No agent framework.** The loop is about forty lines against the Anthropic SDK.
+A framework — the Vercel AI SDK is the obvious one for a TypeScript stack — would
+replace those lines and add provider switching. It would also own the loop, and
+the loop is where the per-turn timings, token costs, and tool inputs in the trace
+panel come from. At three tools that trade is not worth making. At thirty, or the
+day a second provider matters, it is.
 
 **No streaming.** Answers take a few seconds and arrive whole. That's a UX
 improvement, not a correctness one.

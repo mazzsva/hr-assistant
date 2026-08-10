@@ -16,10 +16,24 @@ question to a human.
 | Agent | Claude, three tools: `search_policies`, `headcount_query`, `escalate_to_hr` |
 | API | Node 22, Express, TypeScript |
 | Web | React 19, Vite |
+| Tests | `node:test`, no framework |
 | Evals | Retrieval recall, LLM-judged answers, escalation accuracy |
-| CI | GitHub Actions — typecheck, build, evals, Docker image |
+| CI | GitHub Actions — typecheck, tests, build, evals, image to GHCR |
 
 Why it's built this way: `ARCHITECTURE.md`.
+
+## Results
+
+Twelve cases, scored by `npm run eval`. CI fails below the floor.
+
+| Metric | Floor | Last run |
+| --- | --- | --- |
+| Retrieval recall@5 | 0.85 | 1.000 |
+| Answer accuracy | 0.80 | 1.000 |
+| Escalation accuracy | 1.00 | 1.000 |
+
+Median 5.4 s per answer, about $0.02 a question. The retrieval number uses the
+local embedder, so you can reproduce it with no API keys at all.
 
 ## Before you start
 
@@ -73,12 +87,32 @@ Run `npm run ingest`.
 Front-end work: `npm run web:dev` gives you Vite on :5173 with hot reload. Keep
 `npm run dev` running too.
 
+## Configuration
+
+Everything is an environment variable with a working default, so `docker compose
+up` needs only a key.
+
+| | |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | Required to answer. Retrieval and ingestion work without it |
+| `DATABASE_URL` | Defaults to `postgres://hr:hr@localhost:5432/hr` |
+| `PORT` | Defaults to 3000 |
+| `MODEL` | Defaults to `claude-opus-5`. Must be priced in `src/config.ts`, so the trace can never cost a question with the wrong price list |
+| `VOYAGE_API_KEY` | Optional. Unset uses the local embedder |
+| `API_URL` | Vite dev proxy target. Only needed if the API is not on port 3000 |
+
+Two things are fixed rather than configured. `embeddingDimensions` is baked into
+the `VECTOR(1024)` column, so changing it needs a fresh database. Commands read
+`docs/` and `web/dist` from the working directory, so run them from the repo
+root.
+
 ## Endpoints
 
 | | |
 | --- | --- |
 | `GET /healthz` | Corpus size, embedder, model |
 | `GET /meta` | Live system prompt, tool schemas, counts |
+| `GET /stats` | Answer volume, escalation rate, p50 and p95 latency |
 | `POST /ask` | `{"question": "..."}` → answer, passages, usage, trace |
 
 ```sh
@@ -89,7 +123,19 @@ curl -s localhost:3000/ask -H 'content-type: application/json' \
 The UI shows the same thing: answer, metrics, agent trace, retrieved passages
 with scores.
 
+## Tests
+
+```sh
+npm test
+```
+
+Unit tests over the pure parts: chunking, the local embedder, and the filter
+builder behind `headcount_query`. No database and no API key. Runs in a second.
+
 ## Evals
+
+Tests say the code does what it should. Evals say the agent answers what it
+should. Both gate CI.
 
 ```sh
 npm run eval
@@ -114,6 +160,19 @@ A full run costs about $0.50.
 
 Stop with `docker compose down`, or `brew services stop postgresql@17`.
 
+## Deploying
+
+Every push to `main` publishes `ghcr.io/mazzsva/hr-assistant:latest` once the
+checks pass. `deploy/k8s.yaml` runs that image: two replicas, probes on
+`/healthz`, and a grace period long enough to finish an answer in flight. Create
+the secret first.
+
+```sh
+kubectl create secret generic hr-assistant \
+  --from-literal=DATABASE_URL=... --from-literal=ANTHROPIC_API_KEY=...
+kubectl apply -f deploy/k8s.yaml
+```
+
 ## Layout
 
 ```
@@ -127,10 +186,12 @@ src/
   retrieve.ts    Cosine top-k
   agent.ts       Tools and the agent loop
   server.ts      API, first-boot ingest, static hosting
+test/            Unit tests for the pure parts
 evals/
   dataset.json   Questions, rubrics, expected escalation
   run.ts         Metrics, thresholds, LLM judge
 docs/            The handbook
+deploy/k8s.yaml  Deployment and service
 web/src/
   App.tsx        State and layout, nothing else
   lib/           API calls, formatting, examples
@@ -148,8 +209,9 @@ get none.
 never answer it right.
 
 **Escalation is a real outcome.** "The handbook doesn't cover this" has somewhere
-to go, so the failure mode is a ticket instead of an invented policy. Gated at
-100% in CI.
+to go, so the failure mode is a ticket instead of an invented policy. The tool
+requires the model to state what the handbook does cover, which is what stops the
+employee getting a bare ticket number. Gated at 100% in CI.
 
 **Embeddings are pluggable.** `voyage-3` with `VOYAGE_API_KEY`, otherwise a local
 hashed-bigram embedder. Worse, but it means ingestion and CI need no external
