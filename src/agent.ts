@@ -58,7 +58,7 @@ export const tools: Anthropic.Tool[] = [
           type: "string",
           enum: ["Production", "Engineering", "People", "Logistics"],
         },
-        location: { type: "string", enum: ["Gruenheide", "Berlin", "Prague"] },
+        location: { type: "string", enum: ["Leipzig", "Berlin", "Prague"] },
         level: { type: "string", enum: ["Associate", "Senior", "Lead"] },
       },
       required: [],

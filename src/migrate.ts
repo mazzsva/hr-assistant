@@ -48,7 +48,7 @@ const seedEmployees = `
   SELECT d.name, l.name, lv.name, DATE '2024-01-01' + (n * 11 % 500)
   FROM generate_series(1, 40) AS n
   CROSS JOIN LATERAL (SELECT (ARRAY['Production','Engineering','People','Logistics'])[1 + n % 4] AS name) d
-  CROSS JOIN LATERAL (SELECT (ARRAY['Gruenheide','Berlin','Prague'])[1 + n % 3] AS name) l
+  CROSS JOIN LATERAL (SELECT (ARRAY['Leipzig','Berlin','Prague'])[1 + n % 3] AS name) l
   CROSS JOIN LATERAL (SELECT (ARRAY['Associate','Senior','Lead'])[1 + n % 3] AS name) lv
   WHERE NOT EXISTS (SELECT 1 FROM employees)
 `;
