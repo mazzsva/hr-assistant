@@ -67,7 +67,11 @@ async function main(): Promise<void> {
   if (!config.anthropicApiKey) {
     console.log("answers: skipped (ANTHROPIC_API_KEY not set)\n");
   } else {
-    const client = new Anthropic({ apiKey: config.anthropicApiKey });
+    const client = new Anthropic({
+      apiKey: config.anthropicApiKey,
+      timeout: 60_000,
+      maxRetries: 1,
+    });
     let answerPasses = 0;
     let escalationPasses = 0;
 

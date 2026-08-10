@@ -158,7 +158,12 @@ function addUsage(total: Usage, step: Usage): Usage {
 }
 
 export async function ask(question: string): Promise<AgentResult> {
-  const client = new Anthropic({ apiKey: requireAnthropicKey() });
+  // A stuck request fails in a minute instead of hanging on the SDK default.
+  const client = new Anthropic({
+    apiKey: requireAnthropicKey(),
+    timeout: 60_000,
+    maxRetries: 1,
+  });
   const startedAt = Date.now();
 
   const messages: Anthropic.MessageParam[] = [
