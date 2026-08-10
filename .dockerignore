@@ -10,6 +10,8 @@ web/tsconfig.tsbuildinfo
 .vscode
 
 evals
+test
+deploy
 *.md
 LICENSE
 docker-compose.yml

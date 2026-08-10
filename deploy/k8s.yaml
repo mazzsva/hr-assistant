@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hr-assistant
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hr-assistant
+  template:
+    metadata:
+      labels:
+        app: hr-assistant
+    spec:
+      # Longer than the shutdown handler needs to drain an in-flight answer.
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: api
+          image: ghcr.io/mazzsva/hr-assistant:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: hr-assistant
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          # First boot ingests the handbook, so readiness waits for the corpus.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            periodSeconds: 3
+            failureThreshold: 20
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hr-assistant
+spec:
+  selector:
+    app: hr-assistant
+  ports:
+    - port: 80
+      targetPort: 3000
