@@ -169,12 +169,12 @@ When a document changes, its chunks get new ids. An old `chunk_ids` value in
 ### Prompt caching
 
 The request puts `cache_control` on the system prompt, which caches the tools
-and the system prompt together as one prefix of 1,115 tokens. That is above the
+and the system prompt together as one prefix of 1,142 tokens. That is above the
 minimum for both priced models: 512 tokens for `claude-opus-5` and 1,024 for
 `claude-sonnet-5`. In the eval run of 16 October 2026, the 12 questions took 26
-model turns. The first turn wrote the prefix to the cache and the other 25 read
-it: 27,875 tokens read and 1,115 written. The trace shows `cacheReadTokens` for
-each turn.
+model turns, and all 26 read the prefix from the cache, 29,692 tokens in total.
+The server had written it a few minutes before. The trace shows
+`cacheReadTokens` for each turn.
 
 The history that grows over the turns is not cached. Each turn resends the
 earlier tool results, so a second breakpoint on the latest message is the next
