@@ -1,35 +1,35 @@
 import { pool, toVector } from "./db.ts";
 import { config } from "./config.ts";
-import { embed } from "./embeddings.ts";
+import { embed, activeEmbeddingModel } from "./embeddings.ts";
 
 export interface Passage {
   chunkId: number;
   source: string;
   title: string;
   content: string;
+  // Cosine similarity to the search query, which can differ from the employee's question.
   similarity: number;
 }
 
-export async function retrieve(
-  query: string,
-  topK: number = config.retrievalTopK,
-): Promise<Passage[]> {
+export async function retrieve(query: string): Promise<Passage[]> {
   const [embedding] = await embed([query], "query");
 
+  // Vectors from another model are not comparable, so their chunks never rank.
   const { rows } = await pool.query<{
     id: string;
     source: string;
     title: string;
     content: string;
-    distance: number;
+    similarity: number;
   }>(
     `SELECT c.id, d.source, d.title, c.content,
-            c.embedding <=> $1 AS distance
+            1 - (c.embedding <=> $1) AS similarity
      FROM chunks c
      JOIN documents d ON d.id = c.document_id
+     WHERE d.embedding_model = $2
      ORDER BY c.embedding <=> $1
-     LIMIT $2`,
-    [toVector(embedding!), topK],
+     LIMIT $3`,
+    [toVector(embedding!), activeEmbeddingModel(), config.retrievalTopK],
   );
 
   return rows.map((row) => ({
@@ -37,7 +37,7 @@ export async function retrieve(
     source: row.source,
     title: row.title,
     content: row.content,
-    similarity: 1 - Number(row.distance),
+    similarity: row.similarity,
   }));
 }
 
