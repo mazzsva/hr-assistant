@@ -29,15 +29,27 @@ export function Trace({ trace }: { trace: TraceStep[] }) {
   );
 }
 
-function ModelStep({ step }: { step: Extract<TraceStep, { kind: "model" }> }) {
+type ModelTurn = Extract<TraceStep, { kind: "model" }>;
+
+// The checks run in the same order as the turn loop in src/agent.ts.
+function describeTurn(step: ModelTurn): string {
+  const names = step.requested.map((call) => call.name).join(", ");
+  // The agent ends the run on these stops, before any requested tool runs.
+  if (step.stopReason === "refusal" || step.stopReason === "max_tokens") {
+    return names
+      ? `Stopped: ${step.stopReason} while requesting ${names}`
+      : `Stopped: ${step.stopReason}`;
+  }
+  if (names) return `Requested ${names}`;
+  if (!step.text) return "Ended the turn without an answer";
+  return "Wrote the final answer";
+}
+
+function ModelStep({ step }: { step: ModelTurn }) {
   return (
     <>
       <MetaRow label={`turn ${step.turn}`} value={duration(step.ms)} />
-      <p className={styles.detail}>
-        {step.requested.length > 0
-          ? `Requested ${step.requested.map((call) => call.name).join(", ")}`
-          : `Wrote the final answer (stop: ${step.stopReason})`}
-      </p>
+      <p className={styles.detail}>{describeTurn(step)}</p>
       {step.requested.map((call, index) => (
         <JsonBlock key={index} value={call.input} />
       ))}

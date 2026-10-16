@@ -31,7 +31,7 @@ export function AskForm({ question, pending, onChange, onSubmit }: Props) {
       </form>
 
       <p className={styles.hint}>
-        Each example exercises a different path through the agent.
+        Each example takes a different path through the agent.
       </p>
       <ul className={styles.examples}>
         {examples.map((example) => (

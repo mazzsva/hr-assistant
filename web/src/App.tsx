@@ -17,9 +17,12 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  useEffect(() => {
+  function refreshMeta() {
+    // Meta only feeds the header and config panel, so a failure is not shown.
     fetchMeta().then(setMeta).catch(() => undefined);
-  }, []);
+  }
+
+  useEffect(() => refreshMeta(), []);
 
   async function submit() {
     const trimmed = question.trim();
@@ -30,7 +33,8 @@ export function App() {
     setResult(null);
     try {
       setResult(await askQuestion(trimmed));
-      setMeta(await fetchMeta());
+      // The server logged this run, so the header's answered count can change.
+      refreshMeta();
     } catch (caught) {
       setError((caught as Error).message);
     } finally {

@@ -1,4 +1,3 @@
-/** Each example exercises one path through the agent. */
 export interface Example {
   label: string;
   question: string;

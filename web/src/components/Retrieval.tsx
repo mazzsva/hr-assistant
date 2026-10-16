@@ -9,20 +9,17 @@ export function Retrieval({ passages }: { passages: Passage[] }) {
   if (passages.length === 0) {
     return (
       <Panel title="Retrieval">
-        <p className={styles.empty}>
-          Nothing was retrieved. The agent answered without searching the handbook.
-        </p>
+        <p className={styles.empty}>No handbook passages were retrieved.</p>
       </Panel>
     );
   }
 
   const ranked = [...passages].sort((a, b) => b.similarity - a.similarity);
-  const max = ranked[0]!.similarity;
 
   return (
     <Panel
       title="Retrieval"
-      hint="Cosine similarity against the question embedding, highest first."
+      hint="Cosine similarity to the closest of the model's search queries."
     >
       {ranked.map((passage) => (
         <article key={passage.chunkId} className={styles.item}>
@@ -33,7 +30,7 @@ export function Retrieval({ passages }: { passages: Passage[] }) {
           <div className={styles.bar}>
             <div
               className={styles.fill}
-              style={{ width: `${(passage.similarity / max) * 100}%` }}
+              style={{ width: `${Math.max(0, passage.similarity) * 100}%` }}
             />
           </div>
           <CodeBlock>{passage.content}</CodeBlock>

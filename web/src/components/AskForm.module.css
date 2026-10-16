@@ -24,7 +24,7 @@
   font: inherit;
   font-size: 0.9rem;
   font-weight: 500;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent);
   border: 1px solid var(--accent);
   border-radius: var(--radius);

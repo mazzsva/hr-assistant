@@ -7,7 +7,6 @@ interface Props {
   children: ReactNode;
 }
 
-/** The one section shell every panel uses, so headings never drift apart. */
 export function Panel({ title, hint, children }: Props) {
   return (
     <section className={styles.panel}>
