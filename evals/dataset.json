@@ -3,6 +3,7 @@
     "id": "carryover-deadline",
     "question": "How many unused leave days can I carry into next year, and by when must I take them?",
     "expectedSource": "leave.md",
+    "expectedSection": "## Annual leave",
     "rubric": "States that up to 10 days carry over and that they must be taken by 31 March, or they are forfeited.",
     "shouldEscalate": false
   },
@@ -10,6 +11,7 @@
     "id": "sick-note-day",
     "question": "When do I need a doctor's note if I am off sick?",
     "expectedSource": "leave.md",
+    "expectedSection": "## Sick leave",
     "rubric": "States that a certificate is required from the fourth consecutive day, and from the first day when the absence adjoins annual leave.",
     "shouldEscalate": false
   },
@@ -17,6 +19,7 @@
     "id": "parental-notice",
     "question": "How far ahead do I have to tell the company about parental leave?",
     "expectedSource": "leave.md",
+    "expectedSection": "## Parental leave",
     "rubric": "States seven weeks' notice, and 13 weeks when the leave starts after the child's third birthday.",
     "shouldEscalate": false
   },
@@ -24,6 +27,7 @@
     "id": "night-and-sunday-premium",
     "question": "I work a night shift that falls on a Sunday. What premium do I get?",
     "expectedSource": "working-time.md",
+    "expectedSection": "## Shift premiums",
     "rubric": "States 50% (the Sunday premium) and makes clear premiums are not combined; only the highest applies.",
     "shouldEscalate": false
   },
@@ -31,6 +35,7 @@
     "id": "overtime-payout",
     "question": "Does overtime get paid out or banked?",
     "expectedSource": "working-time.md",
+    "expectedSection": "## Overtime",
     "rubric": "States that approved overtime goes to a working time account, and that balances above 60 hours are paid out at the end of the following quarter.",
     "shouldEscalate": false
   },
@@ -38,6 +43,7 @@
     "id": "remote-abroad",
     "question": "Can I work from Portugal for a few weeks?",
     "expectedSource": "working-time.md",
+    "expectedSection": "## Remote work",
     "rubric": "States the 20 working day per year limit for work outside Germany and that People team approval is required.",
     "shouldEscalate": false
   },
@@ -45,6 +51,7 @@
     "id": "referral-bonus-engineering",
     "question": "What is the referral bonus if I refer someone for an engineering role, and when is it paid?",
     "expectedSource": "hiring.md",
+    "expectedSection": "## Referrals",
     "rubric": "States EUR 3,000 gross for engineering roles, paid after the referred employee completes six months, with both parties still employed.",
     "shouldEscalate": false
   },
@@ -52,6 +59,7 @@
     "id": "referral-already-applied",
     "question": "Someone I know already applied last month. Can I still refer them for the bonus?",
     "expectedSource": "hiring.md",
+    "expectedSection": "## Referrals",
     "rubric": "States that the referral must be logged before the candidate applies, so a candidate already in the system does not qualify.",
     "shouldEscalate": false
   },
@@ -59,6 +67,7 @@
     "id": "internal-move-timing",
     "question": "When does my manager find out I applied for another team?",
     "expectedSource": "hiring.md",
+    "expectedSection": "## Internal applications",
     "rubric": "States that the current manager is informed once the employee reaches the second interview stage, not before.",
     "shouldEscalate": false
   },
@@ -66,6 +75,7 @@
     "id": "personal-record",
     "question": "What is my performance rating for this year?",
     "expectedSource": null,
+    "expectedSection": null,
     "rubric": "Does not state or estimate a rating, explains that individual performance records are not in the handbook, and routes the question to a human HR partner.",
     "shouldEscalate": true
   },
@@ -73,6 +83,7 @@
     "id": "not-in-handbook",
     "question": "What is the company policy on sabbaticals of over a year?",
     "expectedSource": null,
+    "expectedSection": null,
     "rubric": "Says the handbook does not cover leave of that length and escalates instead of inventing an answer.",
     "shouldEscalate": true
   },
@@ -80,6 +91,8 @@
     "id": "headcount",
     "question": "How many people work in Engineering?",
     "expectedSource": null,
+    "expectedSection": null,
+    "headcountQuery": { "department": "Engineering" },
     "rubric": "Gives a specific number obtained from the headcount data, not from a policy document.",
     "shouldEscalate": false
   }
