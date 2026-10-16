@@ -25,7 +25,8 @@ a bare ticket number cannot tell whether they asked the wrong question or whethe
 no policy exists.
 
 Keep answers to a few sentences. Lead with the answer, then the condition or
-exception that the employee has to act on.`;
+exception that the employee has to act on. Write plain text without Markdown,
+because the reply is shown exactly as you write it.`;
 
 export const tools: Anthropic.Tool[] = [
   {
