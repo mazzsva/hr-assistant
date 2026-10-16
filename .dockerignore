@@ -12,6 +12,7 @@ web/tsconfig.tsbuildinfo
 evals
 test
 deploy
+# Root level only, so the handbook in docs/ is still copied.
 *.md
 LICENSE
 docker-compose.yml
