@@ -3,8 +3,17 @@ import { config } from "./config.ts";
 
 export type EmbeddingProvider = "voyage" | "local";
 
+// Returns 1024 dimensions, which must match config.embeddingDimensions.
+const VOYAGE_MODEL = "voyage-3";
+// Ingest re-embeds when this name changes, so bump it with any change to embedLocally.
+const LOCAL_MODEL = "feature-hash-v1";
+
 export function activeProvider(): EmbeddingProvider {
   return config.voyageApiKey ? "voyage" : "local";
+}
+
+export function activeEmbeddingModel(): string {
+  return activeProvider() === "voyage" ? VOYAGE_MODEL : LOCAL_MODEL;
 }
 
 export async function embed(
@@ -28,11 +37,11 @@ async function embedWithVoyage(
       authorization: `Bearer ${config.voyageApiKey}`,
     },
     body: JSON.stringify({
-      model: "voyage-3",
+      model: VOYAGE_MODEL,
       input: texts,
       input_type: inputType,
-      output_dimension: config.embeddingDimensions,
     }),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
@@ -47,14 +56,14 @@ async function embedWithVoyage(
     .map((entry) => normalize(entry.embedding));
 }
 
-// Hashed bag-of-words, so CI and evals run without an embedding key.
-function embedLocally(text: string): number[] {
+// Signed feature hashing of words and character trigrams, so CI and evals run without a key.
+export function embedLocally(text: string): number[] {
   const vector = new Array<number>(config.embeddingDimensions).fill(0);
-  const tokens = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  const words = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
 
-  for (const token of tokens) {
-    for (const gram of [token, ...bigrams(token)]) {
-      const digest = createHash("sha1").update(gram).digest();
+  for (const word of words) {
+    for (const feature of [word, ...characterTrigrams(word)]) {
+      const digest = createHash("sha1").update(feature).digest();
       const bucket = digest.readUInt32BE(0) % config.embeddingDimensions;
       const sign = (digest[4]! & 1) === 0 ? 1 : -1;
       vector[bucket] = vector[bucket]! + sign;
@@ -64,12 +73,12 @@ function embedLocally(text: string): number[] {
   return normalize(vector);
 }
 
-function bigrams(token: string): string[] {
-  const grams: string[] = [];
-  for (let i = 0; i + 3 <= token.length; i++) {
-    grams.push(token.slice(i, i + 3));
+function characterTrigrams(word: string): string[] {
+  const trigrams: string[] = [];
+  for (let i = 0; i + 3 <= word.length; i++) {
+    trigrams.push(word.slice(i, i + 3));
   }
-  return grams;
+  return trigrams;
 }
 
 function normalize(values: number[]): number[] {

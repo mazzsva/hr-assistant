@@ -14,17 +14,18 @@ export function chunkMarkdown(markdown: string): string[] {
       chunks.push(section);
       continue;
     }
-    // Keep the heading on every split so a chunk still names its own policy.
+    // Every part repeats the heading, so a cited part still names its section.
     const heading = section.split("\n", 1)[0] ?? "";
     const body = section.slice(heading.length).trim();
-    for (const part of splitByLength(body, MAX_CHARACTERS - heading.length - 1)) {
-      chunks.push(`${heading}\n${part}`);
+    for (const part of packParagraphs(body, MAX_CHARACTERS - heading.length - 2)) {
+      chunks.push(`${heading}\n\n${part}`);
     }
   }
   return chunks;
 }
 
-function splitByLength(text: string, limit: number): string[] {
+// A single paragraph longer than the limit stays whole, so the limit is soft.
+function packParagraphs(text: string, limit: number): string[] {
   const paragraphs = text.split(/\n{2,}/);
   const parts: string[] = [];
   let current = "";

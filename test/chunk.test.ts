@@ -5,26 +5,27 @@ import { chunkMarkdown } from "../src/chunk.ts";
 test("splits on headings", () => {
   const chunks = chunkMarkdown("# Policy\n\n## One\n\nFirst.\n\n## Two\n\nSecond.");
 
-  assert.equal(chunks.length, 2);
-  assert.match(chunks[0]!, /## One/);
-  assert.match(chunks[1]!, /## Two/);
+  assert.deepEqual(chunks, ["## One\n\nFirst.", "## Two\n\nSecond."]);
 });
 
 test("drops a heading-only section", () => {
   const chunks = chunkMarkdown("# Title\n\n## Real\n\nBody.");
 
-  assert.equal(chunks.length, 1);
-  assert.match(chunks[0]!, /## Real/);
+  assert.deepEqual(chunks, ["## Real\n\nBody."]);
 });
 
-test("keeps the heading on every split of a long section", () => {
+test("keeps the heading on every part of a long section", () => {
   const paragraph = "word ".repeat(200).trim();
   const chunks = chunkMarkdown(`## Overtime\n\n${paragraph}\n\n${paragraph}`);
 
-  assert.ok(chunks.length > 1);
-  for (const chunk of chunks) {
-    assert.match(chunk, /^## Overtime/);
-  }
+  assert.deepEqual(chunks, [`## Overtime\n\n${paragraph}`, `## Overtime\n\n${paragraph}`]);
+});
+
+test("never splits inside a paragraph, even one over the limit", () => {
+  const paragraph = "word ".repeat(400).trim();
+  const chunks = chunkMarkdown(`## Overtime\n\n${paragraph}`);
+
+  assert.deepEqual(chunks, [`## Overtime\n\n${paragraph}`]);
 });
 
 test("returns nothing for an empty document", () => {
