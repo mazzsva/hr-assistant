@@ -34,8 +34,11 @@ export type TraceStep =
       passageIds: number[];
     };
 
+export type Outcome = "answered" | "escalated" | "refused" | "incomplete";
+
 export interface AgentResult {
   answer: string;
+  outcome: Outcome;
   passages: Passage[];
   escalated: boolean;
   turns: number;

@@ -4,8 +4,11 @@ import { pool } from "./db.ts";
 import { retrieve, renderPassages, type Passage } from "./retrieve.ts";
 
 const MAX_TURNS = 6;
+const REFUSED_ANSWER = "This question could not be answered. Please contact HR directly.";
+const INCOMPLETE_ANSWER =
+  "The assistant could not finish an answer to this question. Please contact HR directly.";
 
-const SYSTEM_PROMPT = `You answer HR policy questions for employees of a manufacturing company.
+export const systemPrompt = `You answer HR policy questions for employees of a manufacturing company.
 
 Answer only from the policy passages returned by search_policies, and from figures
 returned by headcount_query. Never rely on general knowledge about employment law
@@ -24,8 +27,6 @@ no policy exists.
 Keep answers to a few sentences. Lead with the answer, then the condition or
 exception that the employee has to act on.`;
 
-export const systemPrompt = SYSTEM_PROMPT;
-
 export const tools: Anthropic.Tool[] = [
   {
     name: "search_policies",
@@ -34,6 +35,7 @@ export const tools: Anthropic.Tool[] = [
       "Call this before answering any question about leave, pay bands, shifts, " +
       "benefits, referrals, or any other written policy. Prefer several narrow " +
       "searches over one broad one when a question has multiple parts.",
+    strict: true,
     input_schema: {
       type: "object",
       properties: {
@@ -43,6 +45,7 @@ export const tools: Anthropic.Tool[] = [
         },
       },
       required: ["query"],
+      additionalProperties: false,
     },
   },
   {
@@ -51,6 +54,7 @@ export const tools: Anthropic.Tool[] = [
       "Count current employees, optionally filtered by department, location, or " +
       "level. Use this for any question about how many people work somewhere. " +
       "Policy documents do not contain headcount figures.",
+    strict: true,
     input_schema: {
       type: "object",
       properties: {
@@ -62,6 +66,7 @@ export const tools: Anthropic.Tool[] = [
         level: { type: "string", enum: ["Associate", "Senior", "Lead"] },
       },
       required: [],
+      additionalProperties: false,
     },
   },
   {
@@ -70,6 +75,7 @@ export const tools: Anthropic.Tool[] = [
       "Open a ticket for a human HR partner. Call this when the handbook does not " +
       "answer the question, or when the question concerns one individual's pay, " +
       "performance, health, or a complaint.",
+    strict: true,
     input_schema: {
       type: "object",
       properties: {
@@ -85,6 +91,7 @@ export const tools: Anthropic.Tool[] = [
         },
       },
       required: ["reason", "coverage"],
+      additionalProperties: false,
     },
   },
 ];
@@ -117,14 +124,30 @@ export type TraceStep =
       passageIds: number[];
     };
 
+export type Outcome = "answered" | "escalated" | "refused" | "incomplete";
+
 export interface AgentResult {
   answer: string;
+  outcome: Outcome;
   passages: Passage[];
   escalated: boolean;
   turns: number;
   latencyMs: number;
   usage: Usage;
   trace: TraceStep[];
+}
+
+let sharedClient: Anthropic | undefined;
+
+// Created on first use, so the server boots without ANTHROPIC_API_KEY.
+export function anthropicClient(): Anthropic {
+  sharedClient ??= new Anthropic({
+    apiKey: requireAnthropicKey(),
+    // Each attempt times out after a minute instead of the SDK default of ten.
+    timeout: 60_000,
+    maxRetries: 1,
+  });
+  return sharedClient;
 }
 
 function priceUsage(usage: Anthropic.Usage): Usage {
@@ -157,19 +180,13 @@ function addUsage(total: Usage, step: Usage): Usage {
   };
 }
 
-export async function ask(question: string): Promise<AgentResult> {
-  // A stuck request fails in a minute instead of hanging on the SDK default.
-  const client = new Anthropic({
-    apiKey: requireAnthropicKey(),
-    timeout: 60_000,
-    maxRetries: 1,
-  });
+export async function ask(
+  question: string,
+  client = anthropicClient(),
+): Promise<AgentResult> {
   const startedAt = Date.now();
-
-  const messages: Anthropic.MessageParam[] = [
-    { role: "user", content: question },
-  ];
-  const seen = new Map<number, Passage>();
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content: question }];
+  const retrieved = new Map<number, Passage>();
   const trace: TraceStep[] = [];
   let usage: Usage = {
     inputTokens: 0,
@@ -178,19 +195,34 @@ export async function ask(question: string): Promise<AgentResult> {
     cacheReadTokens: 0,
     costUsd: 0,
   };
-  let escalated = false;
+  let escalation: Escalation | undefined;
   let turns = 0;
+
+  const finish = (answer: string, outcome: Outcome): AgentResult => ({
+    answer,
+    outcome,
+    passages: [...retrieved.values()],
+    escalated: outcome === "escalated",
+    turns,
+    latencyMs: Date.now() - startedAt,
+    usage,
+    trace,
+  });
+
+  // Once a ticket is open, the employee must see its number even if the model cannot finish.
+  const giveUp = (answer: string, outcome: Outcome): AgentResult =>
+    escalation ? finish(escalation.reply, "escalated") : finish(answer, outcome);
 
   while (turns < MAX_TURNS) {
     turns++;
     const turnStartedAt = Date.now();
     const response = await client.messages.create({
       model: config.model,
-      max_tokens: 16000,
+      max_tokens: 16_000,
       thinking: { type: "adaptive" },
       output_config: { effort: "medium" },
       system: [
-        { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+        { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
       ],
       tools,
       messages,
@@ -221,88 +253,65 @@ export async function ask(question: string): Promise<AgentResult> {
       })),
     });
 
-    if (response.stop_reason === "refusal") {
-      return {
-        answer: "This question could not be answered. Please contact HR directly.",
-        passages: [...seen.values()],
-        escalated: true,
-        turns,
-        latencyMs: Date.now() - startedAt,
-        usage,
-        trace,
-      };
-    }
-
-    messages.push({ role: "assistant", content: response.content });
-
+    if (response.stop_reason === "refusal") return giveUp(REFUSED_ANSWER, "refused");
+    if (response.stop_reason === "max_tokens") return giveUp(INCOMPLETE_ANSWER, "incomplete");
     if (toolUses.length === 0) {
-      return {
-        answer: text,
-        passages: [...seen.values()],
-        escalated,
-        turns,
-        latencyMs: Date.now() - startedAt,
-        usage,
-        trace,
-      };
+      if (!text) return giveUp(INCOMPLETE_ANSWER, "incomplete");
+      if (!escalation) return finish(text, "answered");
+      // The model sometimes rewords the escalation reply and drops the ticket number.
+      const answer = text.includes(escalation.ticket) ? text : `${text}\n\n${escalation.reply}`;
+      return finish(answer, "escalated");
     }
+
+    // One turn can ask for several narrow searches, so they run at the same time.
+    const calls = await Promise.all(
+      toolUses.map(async (toolUse) => {
+        const toolStartedAt = Date.now();
+        const output = await runTool(toolUse).catch(
+          (error: Error): ToolOutput => ({
+            content: `Tool failed: ${error.message}`,
+            summary: `failed: ${error.message}`,
+            failed: true,
+          }),
+        );
+        return { toolUse, output, ms: Date.now() - toolStartedAt };
+      }),
+    );
 
     const results: Anthropic.ToolResultBlockParam[] = [];
-    for (const toolUse of toolUses) {
-      const toolStartedAt = Date.now();
-      try {
-        const outcome = await runTool(toolUse);
-        if (outcome.passages) {
-          for (const passage of outcome.passages) seen.set(passage.chunkId, passage);
+    for (const { toolUse, output, ms } of calls) {
+      for (const passage of output.passages ?? []) {
+        const known = retrieved.get(passage.chunkId);
+        if (!known || passage.similarity > known.similarity) {
+          retrieved.set(passage.chunkId, passage);
         }
-        if (outcome.escalated) escalated = true;
-
-        trace.push({
-          kind: "tool",
-          turn: turns,
-          ms: Date.now() - toolStartedAt,
-          name: toolUse.name,
-          input: toolUse.input,
-          summary: outcome.summary,
-          passageIds: outcome.passages?.map((passage) => passage.chunkId) ?? [],
-        });
-
-        results.push({
-          type: "tool_result",
-          tool_use_id: toolUse.id,
-          content: outcome.content,
-        });
-      } catch (error) {
-        trace.push({
-          kind: "tool",
-          turn: turns,
-          ms: Date.now() - toolStartedAt,
-          name: toolUse.name,
-          input: toolUse.input,
-          summary: `failed: ${(error as Error).message}`,
-          passageIds: [],
-        });
-        results.push({
-          type: "tool_result",
-          tool_use_id: toolUse.id,
-          content: `Tool failed: ${(error as Error).message}`,
-          is_error: true,
-        });
       }
+      escalation = output.escalation ?? escalation;
+
+      trace.push({
+        kind: "tool",
+        turn: turns,
+        ms,
+        name: toolUse.name,
+        input: toolUse.input,
+        summary: output.summary,
+        passageIds: output.passages?.map((passage) => passage.chunkId) ?? [],
+      });
+      results.push({
+        type: "tool_result",
+        tool_use_id: toolUse.id,
+        content: output.content,
+        is_error: output.failed,
+      });
     }
-    messages.push({ role: "user", content: results });
+
+    messages.push(
+      { role: "assistant", content: response.content },
+      { role: "user", content: results },
+    );
   }
 
-  return {
-    answer:
-      "This question needed more steps than allowed. A human HR partner will follow up.",
-    passages: [...seen.values()],
-    escalated: true,
-    turns,
-    latencyMs: Date.now() - startedAt,
-    usage,
-    trace,
-  };
+  return giveUp(INCOMPLETE_ANSWER, "incomplete");
 }
 
 // Column names come from this fixed list, never from the model.
@@ -324,14 +333,31 @@ export function headcountFilters(input: Record<string, string | undefined>): {
   return { where: filters.length ? `WHERE ${filters.join(" AND ")}` : "", values };
 }
 
-interface ToolOutcome {
+export async function countEmployees(
+  input: Record<string, string | undefined>,
+): Promise<number> {
+  const { where, values } = headcountFilters(input);
+  const { rows } = await pool.query<{ count: string }>(
+    `SELECT count(*)::text AS count FROM employees ${where}`,
+    values,
+  );
+  return Number(rows[0]!.count);
+}
+
+interface Escalation {
+  ticket: string;
+  reply: string;
+}
+
+interface ToolOutput {
   content: string;
   summary: string;
   passages?: Passage[];
-  escalated?: boolean;
+  escalation?: Escalation;
+  failed?: boolean;
 }
 
-async function runTool(toolUse: Anthropic.ToolUseBlock): Promise<ToolOutcome> {
+async function runTool(toolUse: Anthropic.ToolUseBlock): Promise<ToolOutput> {
   const input = toolUse.input as Record<string, string | undefined>;
 
   switch (toolUse.name) {
@@ -351,28 +377,24 @@ async function runTool(toolUse: Anthropic.ToolUseBlock): Promise<ToolOutcome> {
     }
 
     case "headcount_query": {
-      const { where, values } = headcountFilters(input);
-      const { rows } = await pool.query<{ count: string }>(
-        `SELECT count(*)::text AS count FROM employees ${where}`,
-        values,
-      );
-      return {
-        content: `count = ${rows[0]!.count}`,
-        summary: `SQL returned ${rows[0]!.count}`,
-      };
+      const count = await countEmployees(input);
+      return { content: `count = ${count}`, summary: `SQL returned ${count}` };
     }
 
     case "escalate_to_hr": {
-      // Requiring coverage as an input makes a bare ticket number impossible.
+      const coverage = input.coverage?.trim();
+      // Strict mode guarantees that coverage is present, not that it has text.
+      if (!coverage) {
+        throw new Error("coverage is required: say what the handbook covers for this question");
+      }
       const ticket = `HR-${Date.now().toString(36).toUpperCase()}`;
-      const coverage = (input.coverage ?? "").trim();
+      const reply =
+        `${coverage} I have opened ticket ${ticket} for a People partner, who will ` +
+        `reply within two working days.`;
       return {
-        content:
-          `Ticket ${ticket} opened. Reply to the employee with exactly this:\n\n` +
-          `${coverage} I have opened ticket ${ticket} for a People partner, who will ` +
-          `reply within two working days.`,
+        content: `Ticket ${ticket} opened. Reply to the employee with exactly this:\n\n${reply}`,
         summary: `ticket ${ticket}`,
-        escalated: true,
+        escalation: { ticket, reply },
       };
     }
 

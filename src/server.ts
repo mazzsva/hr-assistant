@@ -38,7 +38,8 @@ app.get("/meta", async (_request, response) => {
     `SELECT (SELECT count(*) FROM documents)::text  AS documents,
             (SELECT count(*) FROM chunks)::text     AS chunks,
             (SELECT count(*) FROM employees)::text  AS employees,
-            (SELECT count(*) FROM answers)::text    AS answered`,
+            (SELECT count(*) FROM answers
+             WHERE outcome = 'answered')::text      AS answered`,
   );
 
   response.json({
@@ -61,33 +62,42 @@ app.get("/meta", async (_request, response) => {
   });
 });
 
-// Reads back what /ask writes, so the same run that answers also reports on itself.
+// The last 24 hours only, because an all-time average hides a sudden fall in the escalation rate.
 app.get("/stats", async (_request, response) => {
   const { rows } = await pool.query<{
-    answered: string;
+    questions: string;
     escalation_rate: number;
+    failure_rate: number;
     p50_latency_ms: number;
     p95_latency_ms: number;
+    mean_cost_usd: number;
   }>(
-    `SELECT count(*)::text AS answered,
-            coalesce(avg(escalated::int), 0)::float8 AS escalation_rate,
+    `SELECT count(*)::text AS questions,
+            coalesce(avg((outcome = 'escalated')::int), 0)::float8 AS escalation_rate,
+            coalesce(avg((outcome IN ('refused', 'incomplete', 'error'))::int), 0)::float8
+              AS failure_rate,
             coalesce(percentile_cont(0.5)
               WITHIN GROUP (ORDER BY latency_ms), 0)::float8 AS p50_latency_ms,
             coalesce(percentile_cont(0.95)
-              WITHIN GROUP (ORDER BY latency_ms), 0)::float8 AS p95_latency_ms
-     FROM answers`,
+              WITHIN GROUP (ORDER BY latency_ms), 0)::float8 AS p95_latency_ms,
+            coalesce(avg(cost_usd), 0)::float8 AS mean_cost_usd
+     FROM answers
+     WHERE created_at > now() - interval '24 hours'`,
   );
 
   response.json({
-    answered: Number(rows[0]!.answered),
+    questions: Number(rows[0]!.questions),
     escalationRate: rows[0]!.escalation_rate,
+    failureRate: rows[0]!.failure_rate,
     p50LatencyMs: Math.round(rows[0]!.p50_latency_ms),
     p95LatencyMs: Math.round(rows[0]!.p95_latency_ms),
+    meanCostUsd: rows[0]!.mean_cost_usd,
   });
 });
 
 app.post("/ask", async (request, response) => {
-  const question = String((request.body as { question?: unknown }).question ?? "").trim();
+  // Express 5 leaves the body undefined when the request is not JSON.
+  const question = String(request.body?.question ?? "").trim();
   if (!question) {
     response.status(400).json({ error: "question is required" });
     return;
@@ -99,54 +109,54 @@ app.post("/ask", async (request, response) => {
     return;
   }
 
+  const startedAt = Date.now();
   try {
     const result = await ask(question);
-    await pool.query(
-      `INSERT INTO answers (question, answer, chunk_ids, escalated, latency_ms)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [
-        question,
-        result.answer,
-        result.passages.map((passage) => passage.chunkId),
-        result.escalated,
-        result.latencyMs,
-      ],
-    );
+    // A failed log write must not cost the employee the answer.
+    await pool
+      .query(
+        `INSERT INTO answers (question, answer, chunk_ids, outcome, latency_ms, cost_usd)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          question,
+          result.answer,
+          result.passages.map((passage) => passage.chunkId),
+          result.outcome,
+          result.latencyMs,
+          result.usage.costUsd,
+        ],
+      )
+      .catch((error: unknown) => console.error(error));
     response.json(result);
   } catch (error) {
     console.error(error);
-    response.status(500).json({ error: (error as Error).message });
+    const message = (error as Error).message;
+    // A run that throws still counts toward failureRate and the latency percentiles.
+    await pool
+      .query(
+        `INSERT INTO answers (question, answer, outcome, latency_ms)
+         VALUES ($1, $2, 'error', $3)`,
+        [question, message, Date.now() - startedAt],
+      )
+      .catch((error: unknown) => console.error(error));
+    // An internal tool, so the UI shows the real cause instead of a generic message.
+    response.status(500).json({ error: message });
   }
 });
 
 app.use(express.static(webDist));
-app.get(/^(?!\/(ask|healthz|meta|stats)).*/, (_request, response) => {
-  response.sendFile(path.join(webDist, "index.html"));
-});
 
-// An empty volume has no corpus, so first boot ingests the handbook.
-async function bootstrap(): Promise<void> {
-  await migrate();
+await migrate();
+// A new image can ship a changed handbook, so every boot syncs docs/.
+await ingestAll();
 
-  const { rows } = await pool.query<{ count: string }>(
-    `SELECT count(*)::text AS count FROM chunks`,
-  );
-  if (Number(rows[0]!.count) === 0) {
-    const result = await ingestAll();
-    console.log(
-      `ingested ${result.chunks} chunks from ${result.documents} documents`,
-    );
-  }
-}
-
-await bootstrap();
 const server = app.listen(config.port, () => {
   console.log(`listening on http://localhost:${config.port}`);
 });
 
 // Kubernetes sends SIGTERM on every rollout, so in-flight answers finish first.
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
-  process.on(signal, () => {
+  process.once(signal, () => {
     console.log(`${signal} received, shutting down`);
     server.close(async () => {
       await pool.end();
