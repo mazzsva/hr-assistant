@@ -5,17 +5,17 @@ export interface Prices {
   cacheRead: number;
 }
 
-// List prices per million tokens. A model without an entry stops the boot,
-// so the trace can never report a cost from the wrong price list.
+// List prices in USD per million tokens, only for models that accept adaptive thinking and effort.
 const PRICES: Record<string, Prices> = {
   "claude-opus-5": { input: 5, output: 25, cacheWrite: 6.25, cacheRead: 0.5 },
-  "claude-sonnet-5": { input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.3 },
-  "claude-haiku-4-5": { input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.1 },
+  "claude-sonnet-5": { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 },
 };
 
-const model = process.env.MODEL ?? "claude-opus-5";
+// An empty line in .env sets "", so || falls back where ?? would not.
+const model = process.env.MODEL || "claude-opus-5";
 const prices = PRICES[model];
 
+// An unknown model fails at boot, not on the first /ask.
 if (!prices) {
   throw new Error(
     `No prices for MODEL=${model}. Add them to PRICES in src/config.ts.`,
@@ -23,8 +23,8 @@ if (!prices) {
 }
 
 export const config = {
-  databaseUrl: process.env.DATABASE_URL ?? "postgres://hr:hr@localhost:5432/hr",
-  port: Number(process.env.PORT ?? 3000),
+  databaseUrl: process.env.DATABASE_URL || "postgres://hr:hr@localhost:5432/hr",
+  port: Number(process.env.PORT || 3000),
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   voyageApiKey: process.env.VOYAGE_API_KEY ?? "",
   model,
