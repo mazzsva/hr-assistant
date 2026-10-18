@@ -33,6 +33,8 @@ export const tools: Anthropic.Tool[] = [
     name: "search_policies",
     description:
       "Search the company HR policy handbook and return the most relevant passages. " +
+      `Each call returns the ${config.retrievalTopK} passages nearest to the query, each in a ` +
+      `<passage id="..."> tag, even when none of them answers the question. ` +
       "Call this before answering any question about leave, pay bands, shifts, " +
       "benefits, referrals, or any other written policy. Prefer several narrow " +
       "searches over one broad one when a question has multiple parts.",
@@ -74,8 +76,8 @@ export const tools: Anthropic.Tool[] = [
     name: "escalate_to_hr",
     description:
       "Open a ticket for a human HR partner. Call this when the handbook does not " +
-      "answer the question, or when the question concerns one individual's pay, " +
-      "performance, health, or a complaint.",
+      "answer the question, or when the question concerns one individual's own " +
+      "pay, discipline, or medical situation, or a complaint about a person.",
     strict: true,
     input_schema: {
       type: "object",
