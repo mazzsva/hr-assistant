@@ -38,6 +38,28 @@ fifth, `error`, when `ask()` throws.
 Effort is medium, not the model's default of high, to keep latency and cost down
 on short questions over a small handbook. The eval has not compared the two.
 
+## Source layout
+
+```
+src/
+  config.ts      Environment, model and prices
+  db.ts          Pool and pgvector serialization
+  migrate.ts     Schema and seed employees
+  chunk.ts       Heading-aware markdown chunking
+  embeddings.ts  Voyage, with a local feature-hashing fallback
+  ingest.ts      Chunk, embed and sync docs/ into Postgres
+  retrieve.ts    Cosine top-k
+  agent.ts       Tools and the agent loop, ask()
+  server.ts      API, ingest on every boot, static hosting
+test/            Unit tests for the pure parts
+evals/
+  dataset.json   Questions, rubrics, expected escalation
+  run.ts         Metrics, floors, model judge
+docs/            The handbook
+deploy/k8s.yaml  Deployment and Service
+web/src/         React UI: App.tsx, components/, lib/ for API calls and formatting
+```
+
 ## Decisions
 
 ### Retrieval is a tool the model calls

@@ -10,7 +10,52 @@ The handbook in `docs/` and the employee rows are made up. They describe a
 generic European manufacturer, not a real company. The leave and working-time
 rules follow German law.
 
-Design reasoning and known limits are in [ARCHITECTURE.md](ARCHITECTURE.md).
+## Technologies
+
+<table>
+  <tr><td><b>Language</b></td><td>TypeScript</td></tr>
+  <tr><td><b>Server</b></td><td>Node 22 and Express 5</td></tr>
+  <tr><td><b>Model</b></td><td>Claude, <code>claude-opus-5</code> by default</td></tr>
+  <tr><td><b>Database</b></td><td>PostgreSQL 17 with <code>pgvector</code></td></tr>
+  <tr><td><b>Embeddings</b></td><td>Voyage <code>voyage-3</code>, or a local embedder</td></tr>
+  <tr><td><b>Interface</b></td><td>React 19 with Vite</td></tr>
+  <tr><td><b>Deployment</b></td><td>Docker and Kubernetes</td></tr>
+</table>
+
+## Tests and evals
+
+The eval has 12 cases, and CI fails when a metric falls below its floor.
+[ARCHITECTURE.md](ARCHITECTURE.md#evaluation) explains each metric and its limits.
+
+| Metric | Floor | Last result |
+| --- | --- | --- |
+| Retrieval recall@5 (section level) | 0.85 | 1.000 (9/9) |
+| Answer accuracy | 0.80 | 1.000 (12/12) |
+| Escalation accuracy | 1.00 | 1.000 (12/12) |
+
+These results are from 16 October 2026 with `claude-opus-5` and the local
+embedder. A random top 5 of the 14 chunks would score about 0.36 on retrieval.
+The median answer took 4.9 s and the agent calls cost $0.017 a question.
+
+The unit tests cover chunking, the local embedder, the headcount filter builder,
+and the agent loop against a stub client.
+
+```sh
+npm test        # unit tests, no database and no API key
+npm run eval    # scores evals/dataset.json, exits 1 below a floor
+```
+
+Without `ANTHROPIC_API_KEY` the eval scores retrieval only. It needs Postgres,
+and it costs nothing with the local embedder. When `.env` has a key, clear the
+keys in the shell. Node does not let `.env` override a variable that is already
+set, even an empty one:
+
+```sh
+ANTHROPIC_API_KEY= VOYAGE_API_KEY= npm run eval
+```
+
+A full run prints the cost of the agent calls and the prompt cache tokens they
+read and wrote. The judge calls are not in that total.
 
 ## How it works
 
@@ -27,30 +72,29 @@ every cited id was retrieved. The server stores each question in the `answers`
 table with its outcome, latency and cost. The web UI shows the answer, the
 per-turn trace with token cost, and the passages the agent retrieved.
 
-Stack: Node 22, Express 5, TypeScript, PostgreSQL 17 with `pgvector`, React 19
-with Vite. CI and deployment are under [Deploy](#deploy).
+Design reasoning and known limits are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-```
-src/
-  config.ts      Environment, model and prices
-  db.ts          Pool and pgvector serialization
-  migrate.ts     Schema and seed employees
-  chunk.ts       Heading-aware markdown chunking
-  embeddings.ts  Voyage, with a local feature-hashing fallback
-  ingest.ts      Chunk, embed and sync docs/ into Postgres
-  retrieve.ts    Cosine top-k
-  agent.ts       Tools and the agent loop, ask()
-  server.ts      API, ingest on every boot, static hosting
-test/            Unit tests for the pure parts
-evals/
-  dataset.json   Questions, rubrics, expected escalation
-  run.ts         Metrics, floors, model judge
-docs/            The handbook
-deploy/k8s.yaml  Deployment and Service
-web/src/         React UI: App.tsx, components/, lib/ for API calls and formatting
-```
+## Run locally
 
-## Run it with Docker
+### Configuration
+
+All settings are environment variables. `.env.example` lists all of them except
+`API_URL`.
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | none | Needed to answer. Ingest and the retrieval eval run without it |
+| `VOYAGE_API_KEY` | none | Uses `voyage-3` when set, a local embedder when not |
+| `MODEL` | `claude-opus-5` | Must accept adaptive thinking and an effort setting. Without prices in `src/config.ts` the server does not start |
+| `DATABASE_URL` | `postgres://hr:hr@localhost:5432/hr` | |
+| `PORT` | `3000` | |
+| `API_URL` | `http://localhost:3000` | Vite dev proxy target. Set it in the shell for `npm run web:dev`, because Vite does not read the root `.env` |
+
+Each document records the embedding model it was ingested with. When you set or
+remove `VOYAGE_API_KEY`, the next boot re-embeds the handbook. The vector column
+is `VECTOR(1024)`, so a model with a different dimension needs a new database.
+
+### With Docker
 
 ```sh
 cp .env.example .env          # set ANTHROPIC_API_KEY
@@ -68,7 +112,7 @@ added after the first version, so an older database keeps working. For any other
 change to `src/migrate.ts`, run `docker compose down -v` to start again from an
 empty database.
 
-## Run it locally on macOS
+### On macOS
 
 You need Node 22.9 or later and Postgres 17 with `pgvector`.
 
@@ -106,23 +150,12 @@ serves the UI on port 5173 with hot reload and sends API calls to port 3000.
 Run every command from the repository root, because the server reads `docs/`
 and `web/dist` from the working directory.
 
-## Configuration
+Ask a question:
 
-All settings are environment variables. `.env.example` lists all of them except
-`API_URL`.
-
-| Variable | Default | Notes |
-| --- | --- | --- |
-| `ANTHROPIC_API_KEY` | none | Needed to answer. Ingest and the retrieval eval run without it |
-| `VOYAGE_API_KEY` | none | Uses `voyage-3` when set, a local embedder when not |
-| `MODEL` | `claude-opus-5` | Must accept adaptive thinking and an effort setting. Without prices in `src/config.ts` the server does not start |
-| `DATABASE_URL` | `postgres://hr:hr@localhost:5432/hr` | |
-| `PORT` | `3000` | |
-| `API_URL` | `http://localhost:3000` | Vite dev proxy target. Set it in the shell for `npm run web:dev`, because Vite does not read the root `.env` |
-
-Each document records the embedding model it was ingested with. When you set or
-remove `VOYAGE_API_KEY`, the next boot re-embeds the handbook. The vector column
-is `VECTOR(1024)`, so a model with a different dimension needs a new database.
+```sh
+curl -s localhost:3000/ask -H 'content-type: application/json' \
+  -d '{"question":"How many leave days can I carry over?"}'
+```
 
 ## API
 
@@ -132,46 +165,6 @@ is `VECTOR(1024)`, so a model with a different dimension needs a new database.
 | `GET /healthz` | Chunk count, embedder, model |
 | `GET /meta` | The live system prompt, tool schemas and corpus counts |
 | `GET /stats` | For the last 24 hours: question count, escalation rate, failure rate, p50 and p95 latency, mean cost |
-
-```sh
-curl -s localhost:3000/ask -H 'content-type: application/json' \
-  -d '{"question":"How many leave days can I carry over?"}'
-```
-
-## Tests and evals
-
-```sh
-npm test        # unit tests, no database and no API key
-npm run eval    # scores evals/dataset.json, exits 1 below a floor
-```
-
-The unit tests cover chunking, the local embedder, the headcount filter builder,
-and the agent loop against a stub client.
-
-The eval has 12 cases. [ARCHITECTURE.md](ARCHITECTURE.md#evaluation) explains
-each metric and its limits.
-
-| Metric | Floor | Last result |
-| --- | --- | --- |
-| Retrieval recall@5 (section level) | 0.85 | 1.000 (9/9) |
-| Answer accuracy | 0.80 | 1.000 (12/12) |
-| Escalation accuracy | 1.00 | 1.000 (12/12) |
-
-These results are from 16 October 2026 with `claude-opus-5` and the local
-embedder. A random top 5 of the 14 chunks would score about 0.36 on retrieval.
-The median answer took 4.9 s and the agent calls cost $0.017 a question.
-
-Without `ANTHROPIC_API_KEY` the eval scores retrieval only. It needs Postgres,
-and it costs nothing with the local embedder. When `.env` has a key, clear the
-keys in the shell. Node does not let `.env` override a variable that is already
-set, even an empty one:
-
-```sh
-ANTHROPIC_API_KEY= VOYAGE_API_KEY= npm run eval
-```
-
-A full run prints the cost of the agent calls and the prompt cache tokens they
-read and wrote. The judge calls are not in that total.
 
 ## Deploy
 
