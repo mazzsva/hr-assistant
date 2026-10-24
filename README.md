@@ -1,5 +1,7 @@
 # HR Assistant
 
+HR policy agent in TypeScript, Claude, and Postgres
+
 An employee asks an HR question in plain language. A Claude agent searches the
 policy handbook, counts employees with SQL when the question is about headcount,
 and either answers with citations or opens a ticket for a person in HR.
