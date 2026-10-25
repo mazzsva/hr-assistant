@@ -33,9 +33,9 @@ The eval has 12 cases, and CI fails when a metric falls below its floor.
 | Answer accuracy | 0.80 | 1.000 (12/12) |
 | Escalation accuracy | 1.00 | 1.000 (12/12) |
 
-These results are from 16 October 2026 with `claude-opus-5` and the local
+These results are from 25 October 2026 with `claude-opus-5` and the local
 embedder. A random top 5 of the 14 chunks would score about 0.36 on retrieval.
-The median answer took 4.9 s and the agent calls cost $0.017 a question.
+The median answer took 4.9 s and the agent calls cost $0.018 a question.
 
 The unit tests cover chunking, the local embedder, the headcount filter builder,
 and the agent loop against a stub client.

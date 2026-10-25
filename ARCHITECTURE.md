@@ -191,12 +191,11 @@ When a document changes, its chunks get new ids. An old `chunk_ids` value in
 ### Prompt caching
 
 The request puts `cache_control` on the system prompt, which caches the tools
-and the system prompt together as one prefix of 1,142 tokens. That is above the
+and the system prompt together as one prefix of 1,196 tokens. That is above the
 minimum for both priced models: 512 tokens for `claude-opus-5` and 1,024 for
-`claude-sonnet-5`. In the eval run of 16 October 2026, the 12 questions took 26
-model turns, and all 26 read the prefix from the cache, 29,692 tokens in total.
-The server had written it a few minutes before. The trace shows
-`cacheReadTokens` for each turn.
+`claude-sonnet-5`. In the eval run of 25 October 2026, the 12 questions took 26
+model turns. The first turn wrote the prefix to the cache, and the other 25 read
+it, 29,900 tokens in total. The trace shows `cacheReadTokens` for each turn.
 
 The history that grows over the turns is not cached. Each turn resends the
 earlier tool results, so a second breakpoint on the latest message is the next
@@ -258,10 +257,10 @@ would have found the right document about 92% of the time, above the floor. At
 section level a random top 5 scores about 0.36. The gate uses recall@5 because
 the model reads all five passages. The eval also prints recall@1, MRR and, for
 each case, the rank of the expected section and the top passage with its cosine
-similarity. Local embedder, 16 October 2026:
+similarity. Local embedder, 25 October 2026:
 
 ```
-pass  carryover-deadline  rank=1 top=leave.md "## Annual leave" sim=0.417
+pass  carryover-deadline  rank=1 top=leave.md "## Annual leave" sim=0.443
 pass  sick-note-day  rank=1 top=leave.md "## Sick leave" sim=0.110
 pass  parental-notice  rank=1 top=leave.md "## Parental leave" sim=0.424
 pass  night-and-sunday-premium  rank=1 top=working-time.md "## Shift premiums" sim=0.427
