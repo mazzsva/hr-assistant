@@ -7,7 +7,8 @@ accrues at 2.5 days per completed month of service. Employees who join partway
 through a year receive a pro-rated entitlement.
 
 Up to 10 unused days carry over into the next calendar year and must be taken by
-31 March. Days not taken by that date are forfeited without payment.
+31 March. Days not taken by that date lapse only if the company asked the employee
+in good time to take them and said that they would otherwise lapse.
 
 ## Requesting leave
 

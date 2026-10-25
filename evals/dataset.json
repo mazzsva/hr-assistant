@@ -4,7 +4,7 @@
     "question": "How many unused leave days can I carry into next year, and by when must I take them?",
     "expectedSource": "leave.md",
     "expectedSection": "## Annual leave",
-    "rubric": "States that up to 10 days carry over and that they must be taken by 31 March, or they are forfeited.",
+    "rubric": "States that up to 10 days carry over and that they must be taken by 31 March, and that they lapse only if the company asked the employee in time to take them.",
     "shouldEscalate": false
   },
   {
