@@ -109,6 +109,20 @@ app.post("/ask", async (request, response) => {
     return;
   }
 
+  if (config.dailyBudgetUsd !== undefined) {
+    const { rows } = await pool.query<{ spent_usd: number }>(
+      `SELECT coalesce(sum(cost_usd), 0)::float8 AS spent_usd
+       FROM answers
+       WHERE created_at > now() - interval '24 hours'`,
+    );
+    if (rows[0]!.spent_usd >= config.dailyBudgetUsd) {
+      response
+        .status(429)
+        .json({ error: `the daily budget of $${config.dailyBudgetUsd} is spent` });
+      return;
+    }
+  }
+
   const startedAt = Date.now();
   try {
     const result = await ask(question);

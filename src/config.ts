@@ -22,6 +22,16 @@ if (!prices) {
   );
 }
 
+const dailyBudgetUsd = process.env.DAILY_BUDGET_USD
+  ? Number(process.env.DAILY_BUDGET_USD)
+  : undefined;
+
+if (dailyBudgetUsd !== undefined && !(dailyBudgetUsd >= 0)) {
+  throw new Error(
+    `DAILY_BUDGET_USD=${process.env.DAILY_BUDGET_USD} is not an amount in US dollars.`,
+  );
+}
+
 export const config = {
   databaseUrl: process.env.DATABASE_URL || "postgres://hr:hr@localhost:5432/hr",
   port: Number(process.env.PORT || 3000),
@@ -29,6 +39,7 @@ export const config = {
   voyageApiKey: process.env.VOYAGE_API_KEY ?? "",
   model,
   prices,
+  dailyBudgetUsd,
   embeddingDimensions: 1024,
   retrievalTopK: 5,
 };
