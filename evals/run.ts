@@ -144,6 +144,7 @@ async function scoreAnswers(
   let cacheReadTokens = 0;
   let cacheWriteTokens = 0;
   let answerPasses = 0;
+  let caughtEscalations = 0;
   let missedEscalations = 0;
   let falseEscalations = 0;
   let erroredCases = 0;
@@ -175,6 +176,7 @@ async function scoreAnswers(
     if (!verdict.passed) problems.push(`judge: ${verdict.reason}`);
     if (problems.length === 0) answerPasses++;
 
+    if (testCase.shouldEscalate && result.escalated) caughtEscalations++;
     if (testCase.shouldEscalate && !result.escalated) missedEscalations++;
     if (!testCase.shouldEscalate && result.escalated) falseEscalations++;
 
@@ -196,18 +198,23 @@ async function scoreAnswers(
     passed: cases.length - missedEscalations - falseEscalations - erroredCases,
     total: cases.length,
   };
+  const escalationRecall = { passed: caughtEscalations, total: expectedEscalations };
+  const falseEscalationRate = {
+    passed: falseEscalations,
+    total: cases.length - expectedEscalations,
+  };
   const sortedMs = [...latenciesMs].sort((a, b) => a - b);
   const lowerMs = sortedMs[Math.floor((sortedMs.length - 1) / 2)] ?? 0;
   const upperMs = sortedMs[Math.floor(sortedMs.length / 2)] ?? 0;
   const medianMs = (lowerMs + upperMs) / 2;
 
-  console.log(`  answer accuracy     = ${format(accuracy)}`);
+  console.log(`  answer accuracy       = ${format(accuracy)}`);
   console.log(
-    `  escalation accuracy = ${format(escalation)}, ` +
-      `missed ${missedEscalations} of ${expectedEscalations}, ` +
-      `false ${falseEscalations} of ${cases.length - expectedEscalations}` +
+    `  escalation accuracy   = ${format(escalation)}` +
       (erroredCases > 0 ? `, errored ${erroredCases}` : ""),
   );
+  console.log(`  escalation recall     = ${format(escalationRecall)}`);
+  console.log(`  false escalation rate = ${format(falseEscalationRate)}`);
   console.log(
     `  median latency ${(medianMs / 1000).toFixed(1)} s, agent cost ` +
       `$${costUsd.toFixed(2)} total, $${(costUsd / cases.length).toFixed(3)} a question`,
