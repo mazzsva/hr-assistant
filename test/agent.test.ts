@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type Anthropic from "@anthropic-ai/sdk";
-import { ask, headcountFilters, tools, systemPrompt } from "../src/agent.ts";
+import { ask, headcountFilters, tools, systemPrompt, AgentError } from "../src/agent.ts";
+import { config } from "../src/config.ts";
 
 test("counts everyone when no filter is given", () => {
   assert.deepEqual(headcountFilters({}), { where: "", values: [] });
@@ -47,13 +48,14 @@ interface Reply {
 }
 
 // Repeats the last reply once the script runs out, so one tool call can drive the turn limit.
-function stubClient(replies: Reply[]) {
+function stubClient(replies: (Reply | Error)[]) {
   const requests: Anthropic.MessageParam[][] = [];
   const client = {
     messages: {
       create: async ({ messages }: { messages: Anthropic.MessageParam[] }) => {
         requests.push(structuredClone(messages));
         const reply = replies[Math.min(requests.length, replies.length) - 1]!;
+        if (reply instanceof Error) throw reply;
         return {
           stop_reason: reply.stopReason,
           content: reply.content,
@@ -212,4 +214,22 @@ test("reports a refusal as refused, not escalated", async () => {
 
   assert.equal(result.outcome, "refused");
   assert.equal(result.escalated, false);
+});
+
+test("keeps the usage of the turns before a request fails", async () => {
+  const { client } = stubClient([
+    replyWithToolCall("unknown_tool", {}),
+    new Error("Overloaded"),
+  ]);
+
+  const error = await ask("How much leave do I get?", client).catch((error: unknown) => error);
+
+  assert.ok(error instanceof AgentError);
+  assert.equal(error.message, "Overloaded");
+  assert.equal(error.usage.inputTokens, 10);
+  assert.equal(error.usage.outputTokens, 5);
+  assert.equal(
+    error.usage.costUsd,
+    (10 * config.prices.input + 5 * config.prices.output) / 1_000_000,
+  );
 });

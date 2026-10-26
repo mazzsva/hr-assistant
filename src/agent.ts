@@ -140,6 +140,15 @@ export interface AgentResult {
   trace: TraceStep[];
 }
 
+export class AgentError extends Error {
+  readonly usage: Usage;
+
+  constructor(cause: unknown, usage: Usage) {
+    super((cause as Error).message, { cause });
+    this.usage = usage;
+  }
+}
+
 let sharedClient: Anthropic | undefined;
 
 // Created on first use, so the server boots without ANTHROPIC_API_KEY.
@@ -219,17 +228,21 @@ export async function ask(
   while (turns < MAX_TURNS) {
     turns++;
     const turnStartedAt = Date.now();
-    const response = await client.messages.create({
-      model: config.model,
-      max_tokens: 16_000,
-      thinking: { type: "adaptive" },
-      output_config: { effort: "medium" },
-      system: [
-        { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
-      ],
-      tools,
-      messages,
-    });
+    const response = await client.messages
+      .create({
+        model: config.model,
+        max_tokens: 16_000,
+        thinking: { type: "adaptive" },
+        output_config: { effort: "medium" },
+        system: [
+          { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
+        ],
+        tools,
+        messages,
+      })
+      .catch((error: unknown) => {
+        throw new AgentError(error, usage);
+      });
 
     const turnUsage = priceUsage(response.usage);
     usage = addUsage(usage, turnUsage);

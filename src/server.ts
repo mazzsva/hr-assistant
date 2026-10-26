@@ -4,7 +4,7 @@ import { config } from "./config.ts";
 import { pool } from "./db.ts";
 import { migrate } from "./migrate.ts";
 import { ingestAll } from "./ingest.ts";
-import { ask, tools, systemPrompt } from "./agent.ts";
+import { ask, tools, systemPrompt, AgentError } from "./agent.ts";
 import { activeProvider } from "./embeddings.ts";
 
 // Resolved from the working directory, so source, dist, and image agree.
@@ -134,9 +134,14 @@ app.post("/ask", async (request, response) => {
     // A run that throws still counts toward failureRate and the latency percentiles.
     await pool
       .query(
-        `INSERT INTO answers (question, answer, outcome, latency_ms)
-         VALUES ($1, $2, 'error', $3)`,
-        [question, message, Date.now() - startedAt],
+        `INSERT INTO answers (question, answer, outcome, latency_ms, cost_usd)
+         VALUES ($1, $2, 'error', $3, $4)`,
+        [
+          question,
+          message,
+          Date.now() - startedAt,
+          error instanceof AgentError ? error.usage.costUsd : null,
+        ],
       )
       .catch((error: unknown) => console.error(error));
     // An internal tool, so the UI shows the real cause instead of a generic message.
