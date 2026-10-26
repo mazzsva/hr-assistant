@@ -4,10 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       db:
@@ -46,12 +48,13 @@ jobs:
         run: npm run eval
         env:
           # Unset in forks and Dependabot runs, so the eval gates retrieval only, with the local embedder.
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          ANTHROPIC_API_KEY: ""
+          VOYAGE_API_KEY: ""
 
   image:
     runs-on: ubuntu-latest
     needs: check
+    timeout-minutes: 20
 
     permissions:
       contents: read

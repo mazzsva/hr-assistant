@@ -1,0 +1,66 @@
+name: eval
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "!src/server.ts"
+      - "docs/**"
+      - "evals/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/eval.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: eval
+
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: hr
+          POSTGRES_PASSWORD: hr
+          POSTGRES_DB: hr
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hr -d hr"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://hr:hr@localhost:5432/hr
+
+    steps:
+      - name: Require the Anthropic key
+        run: test -n "$ANTHROPIC_API_KEY"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run evals
+        run: npm run eval
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
