@@ -47,6 +47,10 @@ const judgeSchema = {
 } as const;
 
 async function main(): Promise<void> {
+  const repeats = Number(process.env.EVAL_REPEATS || 1);
+  if (!Number.isInteger(repeats) || repeats < 1) {
+    throw new Error(`EVAL_REPEATS must be a positive integer, not ${process.env.EVAL_REPEATS}`);
+  }
   const cases = JSON.parse(
     await readFile(new URL("dataset.json", import.meta.url), "utf8"),
   ) as Case[];
@@ -74,7 +78,7 @@ async function main(): Promise<void> {
   console.log(`embedding model: ${activeEmbeddingModel()}\n`);
 
   const retrieval = await scoreRetrieval(cases);
-  const answers = config.anthropicApiKey ? await scoreAnswers(cases, sections) : null;
+  const answers = config.anthropicApiKey ? await scoreAnswers(cases, sections, repeats) : null;
   if (!answers) console.log("answers: skipped (ANTHROPIC_API_KEY not set)\n");
   await pool.end();
 
@@ -138,6 +142,7 @@ async function scoreRetrieval(cases: Case[]): Promise<Score> {
 async function scoreAnswers(
   cases: Case[],
   sections: Map<string, string>,
+  repeats: number,
 ): Promise<{ accuracy: Score; escalation: Score }> {
   const latenciesMs: number[] = [];
   let costUsd = 0;
@@ -148,67 +153,90 @@ async function scoreAnswers(
   let missedEscalations = 0;
   let falseEscalations = 0;
   let erroredCases = 0;
-  const expectedEscalations = cases.filter((testCase) => testCase.shouldEscalate).length;
+  const runs = cases.length * repeats;
+  const expectedEscalations =
+    cases.filter((testCase) => testCase.shouldEscalate).length * repeats;
+  const casePasses = new Map<string, number>();
 
-  console.log("answers");
+  console.log(repeats > 1 ? `answers (${repeats} runs of each case)` : "answers");
   for (const testCase of cases) {
-    // One failed request must not throw away the cases that were already paid for.
-    const result = await ask(testCase.question).catch((error: Error) => {
-      console.log(`  FAIL  ${testCase.id}  error: ${error.message}`);
-      return null;
-    });
-    if (!result) {
-      erroredCases++;
-      continue;
+    let passes = 0;
+    for (let run = 1; run <= repeats; run++) {
+      const label = repeats > 1 ? `${testCase.id}  run=${run}` : testCase.id;
+      // One failed request must not throw away the cases that were already paid for.
+      const result = await ask(testCase.question).catch((error: Error) => {
+        console.log(`  FAIL  ${label}  error: ${error.message}`);
+        return null;
+      });
+      if (!result) {
+        erroredCases++;
+        continue;
+      }
+      latenciesMs.push(result.latencyMs);
+      costUsd += result.usage.costUsd;
+      cacheReadTokens += result.usage.cacheReadTokens;
+      cacheWriteTokens += result.usage.cacheWriteTokens;
+
+      const problems = await checkAnswer(testCase, result);
+      const verdict = await judge(testCase, result, sections.get(testCase.id)).catch(
+        (error: Error) => ({
+          passed: false,
+          reason: `failed: ${error.message}`,
+        }),
+      );
+      if (!verdict.passed) problems.push(`judge: ${verdict.reason}`);
+      if (problems.length === 0) passes++;
+
+      if (testCase.shouldEscalate && result.escalated) caughtEscalations++;
+      if (testCase.shouldEscalate && !result.escalated) missedEscalations++;
+      if (!testCase.shouldEscalate && result.escalated) falseEscalations++;
+
+      const reached = result.passages.some((passage) => matchesSection(passage, testCase));
+      console.log(
+        `  ${problems.length === 0 ? "pass" : "FAIL"}  ${label}  ` +
+          `outcome=${result.outcome} turns=${result.turns} ` +
+          (testCase.expectedSource ? `reached=${reached ? "yes" : "no"} ` : "") +
+          `${result.latencyMs}ms $${result.usage.costUsd.toFixed(3)}`,
+      );
+      for (const problem of problems) console.log(`        ${problem}`);
+      if (result.escalated !== testCase.shouldEscalate) {
+        console.log(`        escalation expected ${testCase.shouldEscalate}`);
+      }
     }
-    latenciesMs.push(result.latencyMs);
-    costUsd += result.usage.costUsd;
-    cacheReadTokens += result.usage.cacheReadTokens;
-    cacheWriteTokens += result.usage.cacheWriteTokens;
-
-    const problems = await checkAnswer(testCase, result);
-    const verdict = await judge(testCase, result, sections.get(testCase.id)).catch(
-      (error: Error) => ({
-        passed: false,
-        reason: `failed: ${error.message}`,
-      }),
-    );
-    if (!verdict.passed) problems.push(`judge: ${verdict.reason}`);
-    if (problems.length === 0) answerPasses++;
-
-    if (testCase.shouldEscalate && result.escalated) caughtEscalations++;
-    if (testCase.shouldEscalate && !result.escalated) missedEscalations++;
-    if (!testCase.shouldEscalate && result.escalated) falseEscalations++;
-
-    const reached = result.passages.some((passage) => matchesSection(passage, testCase));
-    console.log(
-      `  ${problems.length === 0 ? "pass" : "FAIL"}  ${testCase.id}  ` +
-        `outcome=${result.outcome} turns=${result.turns} ` +
-        (testCase.expectedSource ? `reached=${reached ? "yes" : "no"} ` : "") +
-        `${result.latencyMs}ms $${result.usage.costUsd.toFixed(3)}`,
-    );
-    for (const problem of problems) console.log(`        ${problem}`);
-    if (result.escalated !== testCase.shouldEscalate) {
-      console.log(`        escalation expected ${testCase.shouldEscalate}`);
-    }
+    answerPasses += passes;
+    casePasses.set(testCase.id, passes);
   }
 
-  const accuracy = { passed: answerPasses, total: cases.length };
+  const accuracy = { passed: answerPasses, total: runs };
   const escalation = {
-    passed: cases.length - missedEscalations - falseEscalations - erroredCases,
-    total: cases.length,
+    passed: runs - missedEscalations - falseEscalations - erroredCases,
+    total: runs,
   };
   const escalationRecall = { passed: caughtEscalations, total: expectedEscalations };
   const falseEscalationRate = {
     passed: falseEscalations,
-    total: cases.length - expectedEscalations,
+    total: runs - expectedEscalations,
   };
   const sortedMs = [...latenciesMs].sort((a, b) => a - b);
   const lowerMs = sortedMs[Math.floor((sortedMs.length - 1) / 2)] ?? 0;
   const upperMs = sortedMs[Math.floor(sortedMs.length / 2)] ?? 0;
   const medianMs = (lowerMs + upperMs) / 2;
 
+  if (repeats > 1) {
+    for (const [id, passes] of casePasses) console.log(`  ${passes}/${repeats}  ${id}`);
+  }
   console.log(`  answer accuracy       = ${format(accuracy)}`);
+  if (repeats > 1) {
+    const passedEveryRun = {
+      passed: [...casePasses.values()].filter((passes) => passes === repeats).length,
+      total: cases.length,
+    };
+    const flaky = [...casePasses]
+      .filter(([, passes]) => passes > 0 && passes < repeats)
+      .map(([id]) => id);
+    console.log(`${`  answer pass^${repeats}`.padEnd(24)}= ${format(passedEveryRun)}`);
+    console.log(`  flaky cases           = ${flaky.length > 0 ? flaky.join(", ") : "none"}`);
+  }
   console.log(
     `  escalation accuracy   = ${format(escalation)}` +
       (erroredCases > 0 ? `, errored ${erroredCases}` : ""),
@@ -217,7 +245,7 @@ async function scoreAnswers(
   console.log(`  false escalation rate = ${format(falseEscalationRate)}`);
   console.log(
     `  median latency ${(medianMs / 1000).toFixed(1)} s, agent cost ` +
-      `$${costUsd.toFixed(2)} total, $${(costUsd / cases.length).toFixed(3)} a question`,
+      `$${costUsd.toFixed(2)} total, $${(costUsd / runs).toFixed(3)} a question`,
   );
   console.log(
     `  prompt cache read ${cacheReadTokens} tokens, wrote ${cacheWriteTokens}\n`,
