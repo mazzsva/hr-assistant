@@ -7,6 +7,7 @@ import { retrieve, type Passage } from "../src/retrieve.ts";
 import { activeEmbeddingModel } from "../src/embeddings.ts";
 import { chunkMarkdown } from "../src/chunk.ts";
 import {
+  AgentError,
   anthropicClient,
   ask,
   countEmployees,
@@ -167,6 +168,7 @@ async function scoreAnswers(
       const label = repeats > 1 ? `${testCase.id}  run=${run}` : testCase.id;
       // One failed request must not throw away the cases that were already paid for.
       const result = await ask(testCase.question).catch((error: Error) => {
+        if (error instanceof AgentError) costUsd += error.usage.costUsd;
         console.log(`  FAIL  ${label}  error: ${error.message}`);
         return null;
       });
