@@ -4,6 +4,7 @@ import { migrate } from "../src/migrate.ts";
 import { ingestAll } from "../src/ingest.ts";
 import { retrieve, type Passage } from "../src/retrieve.ts";
 import { activeEmbeddingModel } from "../src/embeddings.ts";
+import { chunkMarkdown } from "../src/chunk.ts";
 import {
   anthropicClient,
   ask,
@@ -35,10 +36,10 @@ const ESCALATION_FLOOR = 1.0;
 const judgeSchema = {
   type: "object",
   properties: {
-    passed: { type: "boolean" },
     reason: { type: "string" },
+    passed: { type: "boolean" },
   },
-  required: ["passed", "reason"],
+  required: ["reason", "passed"],
   additionalProperties: false,
 } as const;
 
@@ -53,13 +54,24 @@ async function main(): Promise<void> {
       );
     }
   }
+  const sections = new Map<string, string>();
+  for (const testCase of cases) {
+    if (!testCase.expectedSource) continue;
+    const section = await sectionText(testCase);
+    if (!section) {
+      throw new Error(
+        `${testCase.id}: ${testCase.expectedSource} has no section "${testCase.expectedSection}"`,
+      );
+    }
+    sections.set(testCase.id, section);
+  }
 
   await migrate();
   await ingestAll();
   console.log(`embedding model: ${activeEmbeddingModel()}\n`);
 
   const retrieval = await scoreRetrieval(cases);
-  const answers = config.anthropicApiKey ? await scoreAnswers(cases) : null;
+  const answers = config.anthropicApiKey ? await scoreAnswers(cases, sections) : null;
   if (!answers) console.log("answers: skipped (ANTHROPIC_API_KEY not set)\n");
   await pool.end();
 
@@ -122,6 +134,7 @@ async function scoreRetrieval(cases: Case[]): Promise<Score> {
 
 async function scoreAnswers(
   cases: Case[],
+  sections: Map<string, string>,
 ): Promise<{ accuracy: Score; escalation: Score }> {
   const latenciesMs: number[] = [];
   let costUsd = 0;
@@ -150,10 +163,12 @@ async function scoreAnswers(
     cacheWriteTokens += result.usage.cacheWriteTokens;
 
     const problems = await checkAnswer(testCase, result);
-    const verdict = await judge(testCase, result.answer).catch((error: Error) => ({
-      passed: false,
-      reason: `failed: ${error.message}`,
-    }));
+    const verdict = await judge(testCase, result, sections.get(testCase.id)).catch(
+      (error: Error) => ({
+        passed: false,
+        reason: `failed: ${error.message}`,
+      }),
+    );
     if (!verdict.passed) problems.push(`judge: ${verdict.reason}`);
     if (problems.length === 0) answerPasses++;
 
@@ -202,10 +217,21 @@ async function scoreAnswers(
 
 // With three documents, a file-level hit is close to chance, so a hit must match the section.
 function matchesSection(passage: Passage, testCase: Case): boolean {
-  return (
-    passage.source === testCase.expectedSource &&
-    passage.content.split("\n").some((line) => line === testCase.expectedSection)
+  return passage.source === testCase.expectedSource && inSection(passage.content, testCase);
+}
+
+function inSection(content: string, testCase: Case): boolean {
+  return content.split("\n").some((line) => line === testCase.expectedSection);
+}
+
+async function sectionText(testCase: Case): Promise<string> {
+  const markdown = await readFile(
+    new URL(`../docs/${testCase.expectedSource}`, import.meta.url),
+    "utf8",
   );
+  return chunkMarkdown(markdown)
+    .filter((chunk) => inSection(chunk, testCase))
+    .join("\n\n");
 }
 
 // The judge sees neither passage ids nor the employees table, so these checks run in code.
@@ -240,8 +266,13 @@ async function checkAnswer(testCase: Case, result: AgentResult): Promise<string[
 
 async function judge(
   testCase: Case,
-  answer: string,
+  result: AgentResult,
+  section: string | undefined,
 ): Promise<{ passed: boolean; reason: string }> {
+  const passages = result.passages
+    .filter((passage) => !matchesSection(passage, testCase))
+    .map((passage) => passage.content)
+    .join("\n\n");
   const response = await anthropicClient().messages.create({
     model: config.model,
     max_tokens: 2000,
@@ -250,19 +281,32 @@ async function judge(
       format: { type: "json_schema", schema: judgeSchema },
     },
     // The rubric is a floor, so extra accurate detail must not fail the answer.
-    system:
-      "You grade an HR assistant's answer against a rubric. Pass if the answer " +
-      "covers every clause of the rubric and states nothing that is factually " +
-      "wrong. Additional accurate detail beyond the rubric is expected and must " +
-      "not count against the answer; the rubric is a floor, not a ceiling. Fail " +
-      "only for a missing rubric clause or a claim that is actually incorrect.",
+    system: section
+      ? "You grade an HR assistant's answer against a rubric and the handbook " +
+        "text: the section that answers the question and the other passages " +
+        "the assistant retrieved. Pass if the answer covers every clause of the " +
+        "rubric and the handbook text supports every fact the answer states. " +
+        "Additional detail beyond the rubric is expected and must not count " +
+        "against the answer when the handbook text supports it; the rubric is a " +
+        "floor, not a ceiling. Fail for a missing rubric clause, a claim that " +
+        "contradicts the handbook text, or a claim that the handbook text does " +
+        "not support. Judge facts only from the handbook text, not from general " +
+        "knowledge. Citation markers such as [12] and a referral to HR are not " +
+        "claims. Give the reason before the verdict."
+      : "You grade an HR assistant's answer against a rubric. Pass if the answer " +
+        "covers every clause of the rubric and states nothing that is factually " +
+        "wrong. Additional accurate detail beyond the rubric is expected and must " +
+        "not count against the answer; the rubric is a floor, not a ceiling. Fail " +
+        "only for a missing rubric clause or a claim that is actually incorrect.",
     messages: [
       {
         role: "user",
         content:
           `<question>${testCase.question}</question>\n` +
+          (section ? `<section>${section}</section>\n` : "") +
+          (section && passages ? `<passages>${passages}</passages>\n` : "") +
           `<rubric>${testCase.rubric}</rubric>\n` +
-          `<answer>${answer}</answer>`,
+          `<answer>${result.answer}</answer>`,
       },
     ],
   });
