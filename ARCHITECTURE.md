@@ -158,6 +158,9 @@ Another Voyage model that returns 1024 dimensions needs only a change to the
 `VOYAGE_MODEL` constant in `src/embeddings.ts`, and the next boot re-embeds the
 handbook.
 
+Every result in this repository so far uses the local embedder. The Voyage path
+has not run against this corpus yet.
+
 Every document row records the embedding model and a hash of its title and
 chunks. Retrieval ranks only chunks from the active model. Without this, setting
 `VOYAGE_API_KEY` on an existing database would compare Voyage query vectors with
@@ -235,7 +238,18 @@ HR system of record.
 
 `npm run eval` runs `evals/run.ts` over the 12 cases in `evals/dataset.json`:
 9 that the handbook answers, 2 that must be escalated, and 1 headcount question.
-Each grounded case names its expected file and section.
+Each grounded case names its expected file and section. `EVAL_DATASET` selects
+another file in `evals/`, and `EVAL_REPEATS` runs each answer case more than
+once.
+
+`evals/heldout.json` has 14 more cases: 9 grounded, 4 that must be escalated and
+1 headcount question. They were generated with Claude from the handbook, checked
+against it, and committed before their first run. The agent's prompt has not
+been changed because of their results. They target what the development set
+lacks: questions that share no
+words with their section ("earlies to lates", "Elterngeld"), questions that need
+two sections or two files, escalations close to a covered topic, and a prompt
+injection.
 
 | Metric | Floor | What it measures |
 | --- | --- | --- |
@@ -288,11 +302,37 @@ weeks' notice, and 13 weeks when the leave starts after the child's third
 birthday." Each rubric names the exact facts the answer must contain, so the
 judge checks specific facts instead of general quality.
 
-Escalation accuracy prints missed and false escalations separately. The run also
+For a grounded case the judge also gets the text of the expected section and of
+the other passages the agent retrieved. It fails an answer that misses a rubric
+clause, contradicts that text, or states a fact that the text does not support,
+so an invented claim fails even when the rubric is covered. It writes its reason
+before its verdict. For escalation and headcount cases it gets the passages the
+agent retrieved, and judges claims about the handbook only from them.
+
+`npm run calibrate` checks the judge against `evals/calibration.json`: 36
+answers to the 9 grounded development cases, generated with Claude from the
+handbook and committed before the first run. 11 are correct, 2 of them with
+true detail from another section. 25 are copies of a correct answer with one
+edit: a changed number, a changed condition, a missing rubric clause, or an
+invented extra claim. The label follows from the kind of edit. On 27 October
+2026 the judge agreed with all 36 labels. That is weak evidence: 25 edits of 9
+base answers are not 25 independent samples, 0 false passes in 25 still allows
+a false pass rate of about 12% (rule of three), and 0 false fails in 11 allows
+about 27%. Each edit is one clear change made with the rubric in view, so it is
+easier to catch than a real failure. The run was one sample of a judge that is
+not deterministic. The calibration covers only the grounded prompt, not the
+prompt for escalation and headcount cases.
+
+Escalation accuracy is over all cases, so it is mostly the cases that must not
+escalate. Escalation recall and the false escalation rate print as separate
+lines. With `EVAL_REPEATS` above 1, the eval prints each case's passes out of
+the runs, the cases that passed every run, and the cases that passed some runs
+but not all. The gates use the pooled rate over all runs. The run also
 prints the median latency and the total cost of the agent calls. When a request
 fails after its retry, the case fails both answer accuracy and escalation
-accuracy, the summary counts it as errored instead of missed or false, and the
-run goes on to the next case. A judge call that fails or stops early fails the
+accuracy, the summary counts it as errored instead of missed or false, a case
+that must escalate counts as a miss in escalation recall, and the run goes on
+to the next case. A judge call that fails or stops early fails the
 answer the same way.
 
 The unit tests check chunking, the local embedder, the headcount filters and the
@@ -303,39 +343,54 @@ prompt or the model.
 
 ## What the evals do not tell me
 
-- The set has 12 cases, and each runs once against a stochastic agent. The
-  floors mean at most 1 retrieval miss of 9, at most 2 answer failures of 12,
-  and no escalation errors. A perfect 12/12 still has a 95% Wilson lower bound
-  of about 0.76, and a 1.00 floor on single samples will sometimes fail CI on
-  sampling noise alone. I would run each case 3 to 5 times, gate on the pass
-  rate, and run the paid eval only on `main`. Only 2 cases must escalate, so the
-  1.00 escalation floor says little about how often the agent misses an
-  escalation.
-- The prompt and the `coverage` input were changed after failures on these same
-  cases, so the scores are on a development set. New cases written after a
-  change are the closest thing to a held-out set.
+- The sets are small. Three runs of each case show which cases are unstable,
+  but they do not make 12 cases into 36 independent samples. A perfect 12/12
+  still has a 95% Wilson lower bound of about 0.76.
+- The `eval` workflow runs the development set once, after the image is built,
+  so it reports a regression but does not block a release. A 1.00 escalation
+  floor on one sample of a stochastic agent will sometimes fail on noise alone,
+  so a red run is a reason to rerun with `EVAL_REPEATS`, not proof of a
+  regression.
+- The prompt and the `coverage` input were changed after failures on the
+  development cases, so those scores are optimistic. The held-out set is the
+  better estimate, but it was generated from the handbook, so it is not a
+  sample of real employee questions.
+- On the held-out set, recall@5 on the raw question is 0.667 (6/9) with the
+  local embedder, below the floor. Two misses share no key word with their
+  section: "hand in my resignation" for `## Probation` and "earlies to lates"
+  for `## Shift patterns`. The third, "late shift, then the early shift", ranks
+  `## Shift patterns` first, which the answer also needs, but the case names
+  only the rest period in `## Overtime`. The answers still passed, because the
+  agent writes its own searches in the handbook's words. A semantic embedder
+  such as `voyage-3` may close this gap, and this set is the place to measure
+  it. No run has used Voyage yet.
+- In the first held-out run, `parental-part-time` passed 1 of 3 runs. In the 2
+  failed runs the agent escalated correctly and also mentioned the parental
+  leave top-up, which the handbook does state. The rubric says the handbook
+  "only refers to the statutory entitlement", and the judge then saw no
+  handbook text for escalation cases, so it took the true detail for an
+  invented one. The judge now gets the retrieved passages for these cases, and
+  in the next run the case passed 3 of 3. That run does not show whether the
+  fix or sampling made the difference, and the judge was changed after the
+  held-out results, so the held-out answer score is less clean than its
+  retrieval score. The rubric stays as it was committed.
 - The judge is the same model as the agent, so it can prefer its own phrasing.
-  Nobody has calibrated it, and it does not see the handbook, so "states nothing
-  that is factually wrong" is graded from its own knowledge. To calibrate it, I
-  would add 2 or 3 deliberately wrong answers that the judge must fail, and give
-  the judge the expected section.
-- Recall@5 of 1.000 is a weak bar, because the top 5 is over a third of the 14
-  chunks. Most questions paraphrase the handbook ("banked", "find out") but
-  still share a key word such as "overtime" with their section. Two cases
-  share none: `sick-note-day` ("doctor's note" for "medical certificate") and
-  `remote-abroad` ("Portugal" for "outside Germany"). With the local embedder
-  they have the two lowest top scores, and `remote-abroad` is the only case not
-  at rank 1. More cases like them, scored with both embedders, would show what
-  Voyage adds.
-- The only case with competing rules is `night-and-sunday-premium`, and both
-  rules are in one section. The set has no question that needs two documents,
-  no documents with conflicting rules and no prompt injection case. I would add
-  those before more grounded cases.
+  The calibration set measures it only against answers with one clear error.
+  Real answers that hedge or are partly right are not in it.
+- Recall@5 of 1.000 on the development set is a weak bar, because the top 5 is
+  over a third of the 14 chunks. Most development questions share a key word
+  such as "overtime" with their section. The held-out result above shows what
+  happens when they do not.
+- No case has two documents with conflicting rules. The handbook has no
+  superseded versions, so the eval cannot show that the agent prefers the
+  current rule.
 
 ## Monitoring
 
 `POST /ask` writes each question to `answers` with the answer, the retrieved
-chunk ids, the outcome, the latency and the cost in USD. If the insert fails,
+chunk ids, the outcome, the latency and the cost in USD. When a model request
+fails, the row keeps the cost of the turns before the failure. The failed turn
+returns no usage, so its cost is not counted. If the insert fails,
 the server logs the error and still returns the answer. `GET /stats` reads the
 last 24 hours of the table back as question count, escalation rate, failure
 rate, p50 and p95 latency, and mean cost. An all-time average would hide a
@@ -354,9 +409,13 @@ priced from the table in `src/config.ts`. The UI shows it.
 
 ## Gaps that matter before real use
 
-- `/ask` has no authentication and no rate limit. The only limit is 1000
-  characters per question, and each question can run six model turns, so anyone
-  who can reach the service can spend the API budget.
+- `/ask` has no authentication and no rate limit. Each question can run six
+  model turns. `DAILY_BUDGET_USD` stops new questions when the answers of the
+  last 24 hours reach the budget. All replicas read the same `answers` table, so
+  the cap is shared, but nothing reserves budget, so questions already running
+  can go over it. A per-IP limit would be wrong here: each replica would count
+  on its own, and behind a proxy or a factory network many employees share one
+  address.
 - Retrieved text goes into the model's context unfiltered. The handbook is
   trusted today. A corpus that employees can edit would make prompt injection a
   real path.
