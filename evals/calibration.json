@@ -1,0 +1,224 @@
+[
+  {
+    "caseId": "carryover-deadline",
+    "kind": "correct",
+    "label": "pass",
+    "answer": "You can carry up to 10 unused days of annual leave into the next calendar year, and you must take them by 31 March [3]. Days you have not taken by then lapse only if the company asked you in good time to take them and told you that they would otherwise lapse [3]. For reference, full-time employees receive 30 days of paid annual leave per calendar year [3]."
+  },
+  {
+    "caseId": "carryover-deadline",
+    "kind": "wrong-number",
+    "label": "fail",
+    "answer": "You can carry up to 5 unused days of annual leave into the next calendar year, and you must take them by 31 March [3]. Days you have not taken by then lapse only if the company asked you in good time to take them and told you that they would otherwise lapse [3]."
+  },
+  {
+    "caseId": "carryover-deadline",
+    "kind": "wrong-condition",
+    "label": "fail",
+    "answer": "You can carry up to 10 unused days of annual leave into the next calendar year, and you must take them by 30 June [3]. Days you have not taken by then lapse only if the company asked you in good time to take them and told you that they would otherwise lapse [3]."
+  },
+  {
+    "caseId": "carryover-deadline",
+    "kind": "missing-clause",
+    "label": "fail",
+    "answer": "You can carry up to 10 unused days of annual leave into the next calendar year, and you must take them by 31 March [3]. For reference, full-time employees receive 30 days of paid annual leave per calendar year [3]."
+  },
+  {
+    "caseId": "carryover-deadline",
+    "kind": "correct-extra",
+    "label": "pass",
+    "answer": "You can carry up to 10 unused days of annual leave into the next calendar year, and you must take them by 31 March [3]. Days you have not taken by then lapse only if the company asked you in good time to take them and told you that they would otherwise lapse [3]. To book the carried-over days, send the request through the shift planning system at least 14 calendar days before your first day of absence [4].",
+    "passages": [
+      "## Requesting leave\n\nLeave requests go through the shift planning system at least 14 calendar days\nbefore the first day of absence. Requests covering more than 10 consecutive\nworking days need approval from the department lead as well as the direct manager.\n\nDuring a production ramp the plant director may declare a blackout period of up to\nfour weeks in which only pre-approved and statutory leave is granted."
+    ]
+  },
+  {
+    "caseId": "sick-note-day",
+    "kind": "correct",
+    "label": "pass",
+    "answer": "You need a medical certificate from the fourth consecutive calendar day of illness [5]. If the sick days come directly before or after annual leave, you need a certificate from the first day [5]. In every case, tell your manager before the start of your shift on the first day you are ill [5]."
+  },
+  {
+    "caseId": "sick-note-day",
+    "kind": "wrong-number",
+    "label": "fail",
+    "answer": "You need a medical certificate from the third consecutive calendar day of illness [5]. If the sick days come directly before or after annual leave, you need a certificate from the first day [5]. In every case, tell your manager before the start of your shift on the first day you are ill [5]."
+  },
+  {
+    "caseId": "sick-note-day",
+    "kind": "missing-clause",
+    "label": "fail",
+    "answer": "You need a medical certificate from the fourth consecutive calendar day of illness [5]. In every case, tell your manager before the start of your shift on the first day you are ill [5]."
+  },
+  {
+    "caseId": "sick-note-day",
+    "kind": "invented-claim",
+    "label": "fail",
+    "answer": "You need a medical certificate from the fourth consecutive calendar day of illness [5]. If the sick days come directly before or after annual leave, you need a certificate from the first day [5]. Send the certificate to the People team within two working days of the doctor's visit [5]."
+  },
+  {
+    "caseId": "parental-notice",
+    "kind": "correct",
+    "label": "pass",
+    "answer": "Notify the People team at least seven weeks before the intended start date of your parental leave [6]. If the leave starts after your child's third birthday, the notice period is at least 13 weeks [6]. If you have more than 12 months of service, the company also tops up parental allowance to 100% of base pay for the first eight weeks [6]."
+  },
+  {
+    "caseId": "parental-notice",
+    "kind": "wrong-condition",
+    "label": "fail",
+    "answer": "Notify the People team at least seven weeks before the intended start date of your parental leave [6]. If the leave starts after your child's second birthday, the notice period is at least 13 weeks [6]."
+  },
+  {
+    "caseId": "parental-notice",
+    "kind": "missing-clause",
+    "label": "fail",
+    "answer": "Notify the People team at least seven weeks before the intended start date of your parental leave [6]. If you have more than 12 months of service, the company also tops up parental allowance to 100% of base pay for the first eight weeks [6]."
+  },
+  {
+    "caseId": "parental-notice",
+    "kind": "invented-claim",
+    "label": "fail",
+    "answer": "Notify the People team at least seven weeks before the intended start date of your parental leave [6]. If the leave starts after your child's third birthday, the notice period is at least 13 weeks [6]. Attach a copy of your child's birth certificate to the notice [6]."
+  },
+  {
+    "caseId": "night-and-sunday-premium",
+    "kind": "correct",
+    "label": "pass",
+    "answer": "You get the 50% Sunday premium for those hours [8]. Premiums are not combined, so the 25% night premium does not come on top: only the highest single applicable premium applies, and for a Sunday night shift that is the Sunday premium [8]."
+  },
+  {
+    "caseId": "night-and-sunday-premium",
+    "kind": "wrong-number",
+    "label": "fail",
+    "answer": "You get the 60% Sunday premium for those hours [8]. Premiums are not combined, so the 25% night premium does not come on top: only the highest single applicable premium applies, and for a Sunday night shift that is the Sunday premium [8]."
+  },
+  {
+    "caseId": "night-and-sunday-premium",
+    "kind": "wrong-condition",
+    "label": "fail",
+    "answer": "You get both premiums for those hours: the 25% night premium plus the 50% Sunday premium, so 75% in total [8]."
+  },
+  {
+    "caseId": "night-and-sunday-premium",
+    "kind": "missing-clause",
+    "label": "fail",
+    "answer": "Sunday hours carry a 50% premium, so you get 50% for those hours [8]."
+  },
+  {
+    "caseId": "night-and-sunday-premium",
+    "kind": "correct-extra",
+    "label": "pass",
+    "answer": "You get the 50% Sunday premium for those hours [8]. Premiums are not combined, so the 25% night premium does not come on top: only the highest single applicable premium applies [8]. The night shift runs from 22:00 to 06:00 [7].",
+    "passages": [
+      "## Shift patterns\n\nProduction runs three shifts: early (06:00-14:00), late (14:00-22:00), and night\n(22:00-06:00). Shift plans are published at least three weeks in advance. A\npublished shift may be changed with less than 96 hours' notice only with the\nemployee's consent."
+    ]
+  },
+  {
+    "caseId": "overtime-payout",
+    "kind": "correct",
+    "label": "pass",
+    "answer": "By default it is banked: approved overtime is credited to your working time account, not paid out [9]. Balances above 60 hours are paid out at the end of the following quarter [9]. Keep in mind that overtime is voluntary and must be approved in advance [9]."
+  },
+  {
+    "caseId": "overtime-payout",
+    "kind": "wrong-number",
+    "label": "fail",
+    "answer": "By default it is banked: approved overtime is credited to your working time account, not paid out [9]. Balances above 40 hours are paid out at the end of the following quarter [9]. Keep in mind that overtime is voluntary and must be approved in advance [9]."
+  },
+  {
+    "caseId": "overtime-payout",
+    "kind": "wrong-condition",
+    "label": "fail",
+    "answer": "By default it is banked: approved overtime is credited to your working time account, not paid out [9]. Balances above 60 hours are paid out at the end of the following month [9]. Keep in mind that overtime is voluntary and must be approved in advance [9]."
+  },
+  {
+    "caseId": "overtime-payout",
+    "kind": "invented-claim",
+    "label": "fail",
+    "answer": "By default it is banked: approved overtime is credited to your working time account, not paid out [9]. Balances above 60 hours are paid out at the end of the following quarter [9]. Overtime hours that are paid out carry a 25% premium [9]."
+  },
+  {
+    "caseId": "remote-abroad",
+    "kind": "correct",
+    "label": "pass",
+    "answer": "Possibly, if your role is eligible for remote work. Remote work from outside Germany is limited to 20 working days per calendar year and requires People team approval for tax and social security reasons [10]. Production, maintenance, quality, and logistics roles are on-site roles and are not eligible for remote work [10]."
+  },
+  {
+    "caseId": "remote-abroad",
+    "kind": "wrong-number",
+    "label": "fail",
+    "answer": "Possibly, if your role is eligible for remote work. Remote work from outside Germany is limited to 30 working days per calendar year and requires People team approval for tax and social security reasons [10]. Production, maintenance, quality, and logistics roles are on-site roles and are not eligible for remote work [10]."
+  },
+  {
+    "caseId": "remote-abroad",
+    "kind": "wrong-condition",
+    "label": "fail",
+    "answer": "Possibly, if your role is eligible for remote work. Remote work from outside Germany is limited to 20 working days per trip and requires People team approval for tax and social security reasons [10]. Production, maintenance, quality, and logistics roles are on-site roles and are not eligible for remote work [10]."
+  },
+  {
+    "caseId": "remote-abroad",
+    "kind": "missing-clause",
+    "label": "fail",
+    "answer": "Possibly, if your role is eligible for remote work. Remote work from outside Germany is limited to 20 working days per calendar year [10]. Production, maintenance, quality, and logistics roles are on-site roles and are not eligible for remote work [10]."
+  },
+  {
+    "caseId": "referral-bonus-engineering",
+    "kind": "correct",
+    "label": "pass",
+    "answer": "For an engineering role the referral bonus is EUR 3,000 gross [12]. It is paid after the referred employee completes six months of service, and both you and the person you referred must still be employed on the payment date [12]. The referral counts only if you log it before the candidate applies [12]."
+  },
+  {
+    "caseId": "referral-bonus-engineering",
+    "kind": "wrong-condition",
+    "label": "fail",
+    "answer": "For an engineering role the referral bonus is EUR 3,000 gross [12]. It is paid after the referred employee completes six months of service, and only the person you referred must still be employed on the payment date [12]. The referral counts only if you log it before the candidate applies [12]."
+  },
+  {
+    "caseId": "referral-bonus-engineering",
+    "kind": "missing-clause",
+    "label": "fail",
+    "answer": "For an engineering role the referral bonus is EUR 3,000 gross [12]. Both you and the person you referred must still be employed on the payment date [12]. The referral counts only if you log it before the candidate applies [12]."
+  },
+  {
+    "caseId": "referral-bonus-engineering",
+    "kind": "invented-claim",
+    "label": "fail",
+    "answer": "For an engineering role the referral bonus is EUR 3,000 gross [12]. It is paid after the referred employee completes six months of service, and both you and the person you referred must still be employed on the payment date [12]. The bonus is paid with your next monthly salary after that date [12]."
+  },
+  {
+    "caseId": "referral-already-applied",
+    "kind": "correct",
+    "label": "pass",
+    "answer": "No. A candidate counts as referred only if the referral is logged before the candidate applies [12]. Because they applied last month, they are already in the applicant tracking system, and referrals for candidates already in the system do not qualify [12]."
+  },
+  {
+    "caseId": "referral-already-applied",
+    "kind": "wrong-condition",
+    "label": "fail",
+    "answer": "Yes. You can still refer them for the bonus as long as they have not had their first interview yet [12]. Log the referral before the interview is scheduled [12]."
+  },
+  {
+    "caseId": "referral-already-applied",
+    "kind": "invented-claim",
+    "label": "fail",
+    "answer": "No. A candidate counts as referred only if the referral is logged before the candidate applies [12]. Because they applied last month, they are already in the applicant tracking system, and referrals for candidates already in the system do not qualify [12]. The hiring manager can approve an exception if you introduced the candidate informally before they applied [12]."
+  },
+  {
+    "caseId": "internal-move-timing",
+    "kind": "correct",
+    "label": "pass",
+    "answer": "Your current manager is informed once you reach the second interview stage, not before [1]. Note that you can apply for an internal opening only after 12 months in your current role [1]."
+  },
+  {
+    "caseId": "internal-move-timing",
+    "kind": "wrong-number",
+    "label": "fail",
+    "answer": "Your current manager is informed once you reach the third interview stage, not before [1]. Note that you can apply for an internal opening only after 12 months in your current role [1]."
+  },
+  {
+    "caseId": "internal-move-timing",
+    "kind": "invented-claim",
+    "label": "fail",
+    "answer": "Your current manager is informed once you reach the second interview stage, not before [1]. Internal applicants skip the recruiter screening call and go straight to the first interview [1]."
+  }
+]
