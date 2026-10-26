@@ -337,18 +337,28 @@ export async function judge(
         "not support. Judge facts only from the handbook text, not from general " +
         "knowledge. Citation markers such as [12] and a referral to HR are not " +
         "claims. Give the reason before the verdict."
-      : "You grade an HR assistant's answer against a rubric. Pass if the answer " +
-        "covers every clause of the rubric and states nothing that is factually " +
-        "wrong. Additional accurate detail beyond the rubric is expected and must " +
-        "not count against the answer; the rubric is a floor, not a ceiling. Fail " +
-        "only for a missing rubric clause or a claim that is actually incorrect.",
+      : passages
+        ? "You grade an HR assistant's answer to a question that the handbook does " +
+          "not answer, against a rubric and the handbook passages the assistant " +
+          "retrieved. Pass if the answer covers every clause of the rubric and the " +
+          "passages support every fact about the handbook that the answer states. " +
+          "Fail for a missing rubric clause, a claim that contradicts the passages, " +
+          "or a claim that the passages do not support. Judge facts about the " +
+          "handbook only from the passages, not from general knowledge or from how " +
+          "the rubric describes the handbook. Citation markers such as [12] and a " +
+          "referral to HR are not claims. Give the reason before the verdict."
+        : "You grade an HR assistant's answer against a rubric. Pass if the answer " +
+          "covers every clause of the rubric and states nothing that is factually " +
+          "wrong. Additional accurate detail beyond the rubric is expected and must " +
+          "not count against the answer; the rubric is a floor, not a ceiling. Fail " +
+          "only for a missing rubric clause or a claim that is actually incorrect.",
     messages: [
       {
         role: "user",
         content:
           `<question>${testCase.question}</question>\n` +
           (section ? `<section>${section}</section>\n` : "") +
-          (section && passages ? `<passages>${passages}</passages>\n` : "") +
+          (passages ? `<passages>${passages}</passages>\n` : "") +
           `<rubric>${testCase.rubric}</rubric>\n` +
           `<answer>${result.answer}</answer>`,
       },
