@@ -47,17 +47,19 @@ const judgeSchema = {
 } as const;
 
 async function main(): Promise<void> {
+  const dataset = process.env.EVAL_DATASET || "dataset.json";
   const repeats = Number(process.env.EVAL_REPEATS || 1);
   if (!Number.isInteger(repeats) || repeats < 1) {
     throw new Error(`EVAL_REPEATS must be a positive integer, not ${process.env.EVAL_REPEATS}`);
   }
   const cases = JSON.parse(
-    await readFile(new URL("dataset.json", import.meta.url), "utf8"),
+    await readFile(new URL(dataset, import.meta.url), "utf8"),
   ) as Case[];
+  console.log(`dataset: ${dataset}, ${cases.length} cases`);
   for (const testCase of cases) {
     if (Boolean(testCase.expectedSource) !== Boolean(testCase.expectedSection)) {
       throw new Error(
-        `${testCase.id}: set expectedSource and expectedSection together in evals/dataset.json`,
+        `${testCase.id}: set expectedSource and expectedSection together in evals/${dataset}`,
       );
     }
   }
