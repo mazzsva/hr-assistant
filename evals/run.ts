@@ -14,7 +14,7 @@ import {
 } from "../src/agent.ts";
 import { config } from "../src/config.ts";
 
-interface Case {
+export interface Case {
   id: string;
   question: string;
   expectedSource: string | null;
@@ -264,7 +264,7 @@ function inSection(content: string, testCase: Case): boolean {
   return content.split("\n").some((line) => line === testCase.expectedSection);
 }
 
-async function sectionText(testCase: Case): Promise<string> {
+export async function sectionText(testCase: Case): Promise<string> {
   const markdown = await readFile(
     new URL(`../docs/${testCase.expectedSource}`, import.meta.url),
     "utf8",
@@ -308,7 +308,7 @@ export function statesNumber(answer: string, value: number): boolean {
   return new RegExp(`\\b${value}\\b`).test(answer.replace(CITATION, " "));
 }
 
-async function judge(
+export async function judge(
   testCase: Case,
   result: AgentResult,
   section: string | undefined,
