@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import { pool } from "../src/db.ts";
 import { migrate } from "../src/migrate.ts";
 import { ingestAll } from "../src/ingest.ts";
@@ -32,6 +33,8 @@ interface Score {
 const RETRIEVAL_FLOOR = 0.85;
 const ANSWER_FLOOR = 0.8;
 const ESCALATION_FLOOR = 1.0;
+
+const CITATION = /\[(\d+(?:,\s*\d+)*)\]/g;
 
 const judgeSchema = {
   type: "object",
@@ -238,7 +241,7 @@ async function sectionText(testCase: Case): Promise<string> {
 async function checkAnswer(testCase: Case, result: AgentResult): Promise<string[]> {
   const problems: string[] = [];
   const retrievedIds = new Set(result.passages.map((passage) => passage.chunkId));
-  const citedIds = [...result.answer.matchAll(/\[(\d+(?:,\s*\d+)*)\]/g)].flatMap(
+  const citedIds = [...result.answer.matchAll(CITATION)].flatMap(
     (match) => match[1]!.split(",").map(Number),
   );
 
@@ -257,11 +260,15 @@ async function checkAnswer(testCase: Case, result: AgentResult): Promise<string[
     if (!queried) problems.push("never called headcount_query");
 
     const count = await countEmployees(testCase.headcountQuery);
-    if (!new RegExp(`\\b${count}\\b`).test(result.answer)) {
+    if (!statesNumber(result.answer, count)) {
       problems.push(`answer does not state the headcount ${count}`);
     }
   }
   return problems;
+}
+
+export function statesNumber(answer: string, value: number): boolean {
+  return new RegExp(`\\b${value}\\b`).test(answer.replace(CITATION, " "));
 }
 
 async function judge(
@@ -329,4 +336,6 @@ function format(score: Score): string {
   return `${rate(score).toFixed(3)} (${score.passed}/${score.total})`;
 }
 
-await main();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  await main();
+}
