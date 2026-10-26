@@ -14,3 +14,12 @@ test("ignores a number inside a citation", () => {
 test("ignores a number inside a longer number", () => {
   assert.equal(statesNumber("Engineering has 120 employees.", 12), false);
 });
+
+test("ignores a number inside a larger amount", () => {
+  assert.equal(statesNumber("Engineering has about 12,000 employees.", 12), false);
+  assert.equal(statesNumber("Engineering has 12.5 positions.", 12), false);
+});
+
+test("finds a number at the end of a sentence", () => {
+  assert.equal(statesNumber("Engineering has 12.", 12), true);
+});

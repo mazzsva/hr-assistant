@@ -307,7 +307,9 @@ async function checkAnswer(testCase: Case, result: AgentResult): Promise<string[
 }
 
 export function statesNumber(answer: string, value: number): boolean {
-  return new RegExp(`\\b${value}\\b`).test(answer.replace(CITATION, " "));
+  return new RegExp(`(?<![\\d.,])${value}(?![\\d]|[.,]\\d)`).test(
+    answer.replace(CITATION, " "),
+  );
 }
 
 export async function judge(
