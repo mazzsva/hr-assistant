@@ -12,7 +12,7 @@ spec:
       labels:
         app: hr-assistant
     spec:
-      # The 5 s preStop sleep counts against this, and a typical answer needs the other 40.
+      # The 5 s preStop sleep counts against this, which leaves 40 s for answers in flight.
       terminationGracePeriodSeconds: 45
       containers:
         - name: api

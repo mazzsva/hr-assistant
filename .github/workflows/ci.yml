@@ -47,7 +47,7 @@ jobs:
       - name: Run evals
         run: npm run eval
         env:
-          # Unset in forks and Dependabot runs, so the eval gates retrieval only, with the local embedder.
+          # Empty on purpose, so the eval gates retrieval only, with the local embedder.
           ANTHROPIC_API_KEY: ""
           VOYAGE_API_KEY: ""
 
